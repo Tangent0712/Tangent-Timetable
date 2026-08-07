@@ -138,10 +138,6 @@ body {
   word-break: break-all;
 }
 
-.course-block-inactive {
-  opacity: 0.42;
-}
-
 .course-conflict-badge {
   position: absolute;
   top: 2px;

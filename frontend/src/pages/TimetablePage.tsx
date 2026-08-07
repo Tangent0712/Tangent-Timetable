@@ -18,6 +18,7 @@ import {
   SettingOutlined,
 } from '@ant-design/icons'
 import TimetableGrid from '../components/TimetableGrid'
+import CourseListView from '../components/CourseListView'
 import CourseFormModal from '../components/CourseFormModal'
 import ScheduleManagerModal from '../components/ScheduleManagerModal'
 import ImportHtmlModal from '../components/ImportHtmlModal'
@@ -224,17 +225,25 @@ export default function TimetablePage() {
         </Card>
       )}
 
-      <TimetableGrid
-        courses={courses}
-        periods={periods}
-        week={week}
-        semesterStart={activeSchedule?.periodStartDate ?? null}
-        showAllWeeks={viewMode === 'all'}
-        onCourseClick={(course) =>
-          setCourseModal({ open: true, course, defaults: null })
-        }
-        onEmptyClick={(day, period) => openCreate(day, period)}
-      />
+      {viewMode === 'week' ? (
+        <TimetableGrid
+          courses={courses}
+          periods={periods}
+          week={week}
+          semesterStart={activeSchedule?.periodStartDate ?? null}
+          onCourseClick={(course) =>
+            setCourseModal({ open: true, course, defaults: null })
+          }
+          onEmptyClick={(day, period) => openCreate(day, period)}
+        />
+      ) : (
+        <CourseListView
+          courses={courses}
+          periods={periods}
+          onEdit={(course) => setCourseModal({ open: true, course, defaults: null })}
+          onDelete={deleteCourse}
+        />
+      )}
 
       <CourseFormModal
         open={courseModal.open}

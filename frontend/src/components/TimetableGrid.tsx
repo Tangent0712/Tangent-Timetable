@@ -10,7 +10,6 @@ interface Props {
   periods: PeriodConfig[]
   week: number
   semesterStart: string | null
-  showAllWeeks: boolean
   onCourseClick: (course: Course) => void
   onEmptyClick: (dayOfWeek: number, period: number) => void
 }
@@ -65,7 +64,6 @@ export default function TimetableGrid({
   periods,
   week,
   semesterStart,
-  showAllWeeks,
   onCourseClick,
   onEmptyClick,
 }: Props) {
@@ -78,7 +76,8 @@ export default function TimetableGrid({
     const map = new Map<string, Placed>()
     const taken = new Set<string>()
 
-    const visible = courses.filter((c) => showAllWeeks || c.weeks?.includes(week))
+    // 只展示本周有课的记录；「全部课程」由 CourseListView 以列表呈现
+    const visible = courses.filter((c) => c.weeks?.includes(week))
 
     // 按天分组后逐天解决冲突
     for (let day = 1; day <= 7; day++) {
@@ -97,7 +96,7 @@ export default function TimetableGrid({
       }
     }
     return { cellMap: map, occupied: taken }
-  }, [courses, showAllWeeks, week])
+  }, [courses, week])
 
   /**
    * 时段分界线：上午 / 下午 / 晚上 之间加粗分隔。
