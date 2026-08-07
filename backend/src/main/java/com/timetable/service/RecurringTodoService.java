@@ -23,6 +23,9 @@ public interface RecurringTodoService {
     /** 立即触发一次，生成当期待办（用于手动补生成与测试） */
     RecurringTodo triggerNow(Long id, String apiKey);
 
+    /** 试运行自定义脚本，返回是否合法与当前是否会触发 */
+    com.timetable.service.impl.RecurringScriptEvaluator.ScriptResult testScript(String script);
+
     /**
      * 扫描所有到期规则并生成待办，返回生成条数。
      * 会补齐停机期间错过的触发（同一规则每周期最多补一条）。

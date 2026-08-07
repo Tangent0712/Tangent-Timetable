@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 @Service
@@ -26,10 +27,13 @@ public class RecurringTodoServiceImpl implements RecurringTodoService {
 
     private final RecurringTodoMapper recurringMapper;
     private final TodoMapper todoMapper;
+    private final RecurringScriptEvaluator scriptEvaluator;
 
-    public RecurringTodoServiceImpl(RecurringTodoMapper recurringMapper, TodoMapper todoMapper) {
+    public RecurringTodoServiceImpl(RecurringTodoMapper recurringMapper, TodoMapper todoMapper,
+                                    RecurringScriptEvaluator scriptEvaluator) {
         this.recurringMapper = recurringMapper;
         this.todoMapper = todoMapper;
+        this.scriptEvaluator = scriptEvaluator;
     }
 
     @Override
@@ -54,6 +58,7 @@ public class RecurringTodoServiceImpl implements RecurringTodoService {
         rule.setDayOfWeek(request.getDayOfWeek());
         rule.setDayOfMonth(request.getDayOfMonth());
         rule.setTriggerTime(request.getTriggerTime());
+        rule.setScript(request.getScript());
         rule.setDdlOffsetMinutes(request.getDdlOffsetMinutes());
         if (request.getEnabled() != null) {
             rule.setEnabled(request.getEnabled());
@@ -68,7 +73,23 @@ public class RecurringTodoServiceImpl implements RecurringTodoService {
         if (!RecurringScheduleCalculator.MONTHLY.equals(rule.getFrequency())) {
             rule.setDayOfMonth(null);
         }
+        if (RecurringScheduleCalculator.CUSTOM.equals(rule.getFrequency())) {
+            rule.setTriggerTime(null);
+            rule.setDayOfWeek(null);
+            rule.setDayOfMonth(null);
+        } else {
+            rule.setScript(null);
+        }
         RecurringScheduleCalculator.validate(rule);
+
+        // 自定义脚本必须先试运行通过才允许保存，避免坏脚本进入调度循环
+        if (RecurringScheduleCalculator.CUSTOM.equals(rule.getFrequency())) {
+            RecurringScriptEvaluator.ScriptResult probe =
+                    scriptEvaluator.test(rule.getScript(), LocalDateTime.now(), null);
+            if (!probe.ok()) {
+                throw new BusinessException(400, "脚本校验失败：" + probe.error());
+            }
+        }
     }
 
     @Override
@@ -133,9 +154,15 @@ public class RecurringTodoServiceImpl implements RecurringTodoService {
         LocalDateTime now = LocalDateTime.now();
         spawnTodo(rule, now);
         rule.setLastTriggeredAt(now);
+        // CUSTOM 无固定下次触发时间（返回 null），由脚本每分钟判断
         rule.setNextTriggerAt(RecurringScheduleCalculator.nextTriggerAfter(rule, now));
         recurringMapper.updateById(rule);
         return rule;
+    }
+
+    @Override
+    public RecurringScriptEvaluator.ScriptResult testScript(String script) {
+        return scriptEvaluator.test(script, LocalDateTime.now(), null);
     }
 
     /** 按规则生成一条待办，ddl = 触发时刻 + 偏移 */
@@ -153,8 +180,54 @@ public class RecurringTodoServiceImpl implements RecurringTodoService {
     @Transactional
     public int generateDueTodos() {
         LocalDateTime now = LocalDateTime.now();
+        int generated = generateForFixedRules(now) + generateForCustomRules(now);
+        if (generated > 0) {
+            log.info("Recurring todos generated: {}", generated);
+        }
+        return generated;
+    }
+
+    /**
+     * 自定义脚本规则：每次扫描都执行一次 shouldTrigger(ctx)。
+     * 用「同一分钟内不重复触发」做去重，因为调度器每 60s 跑一次，
+     * 存在同一分钟被扫到两次的可能。
+     */
+    private int generateForCustomRules(LocalDateTime now) {
         LambdaQueryWrapper<RecurringTodo> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(RecurringTodo::getEnabled, true)
+                .eq(RecurringTodo::getFrequency, RecurringScheduleCalculator.CUSTOM);
+
+        int generated = 0;
+        for (RecurringTodo rule : recurringMapper.selectList(wrapper)) {
+            LocalDateTime minute = now.truncatedTo(ChronoUnit.MINUTES);
+            if (rule.getLastTriggeredAt() != null
+                    && !rule.getLastTriggeredAt().truncatedTo(ChronoUnit.MINUTES).isBefore(minute)) {
+                continue;
+            }
+            RecurringScriptEvaluator.ScriptResult r =
+                    scriptEvaluator.test(rule.getScript(), now, rule.getLastTriggeredAt());
+            if (!r.ok()) {
+                // 脚本出错则自动停用，避免每分钟反复报错
+                log.warn("Custom recurring rule {} disabled due to script error: {}",
+                        rule.getId(), r.error());
+                rule.setEnabled(false);
+                recurringMapper.updateById(rule);
+                continue;
+            }
+            if (r.triggered()) {
+                spawnTodo(rule, minute);
+                rule.setLastTriggeredAt(minute);
+                recurringMapper.updateById(rule);
+                generated++;
+            }
+        }
+        return generated;
+    }
+
+    private int generateForFixedRules(LocalDateTime now) {
+        LambdaQueryWrapper<RecurringTodo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(RecurringTodo::getEnabled, true)
+                .ne(RecurringTodo::getFrequency, RecurringScheduleCalculator.CUSTOM)
                 .isNotNull(RecurringTodo::getNextTriggerAt)
                 .le(RecurringTodo::getNextTriggerAt, now);
 
@@ -176,9 +249,6 @@ public class RecurringTodoServiceImpl implements RecurringTodoService {
             }
             rule.setNextTriggerAt(due);
             recurringMapper.updateById(rule);
-        }
-        if (generated > 0) {
-            log.info("Recurring todos generated: {}", generated);
         }
         return generated;
     }

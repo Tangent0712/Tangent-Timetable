@@ -15,6 +15,8 @@ public final class RecurringScheduleCalculator {
     public static final String DAILY = "DAILY";
     public static final String WEEKLY = "WEEKLY";
     public static final String MONTHLY = "MONTHLY";
+    /** 自定义脚本模式：触发时机由用户脚本 shouldTrigger(ctx) 决定 */
+    public static final String CUSTOM = "CUSTOM";
 
     private RecurringScheduleCalculator() {}
 
@@ -35,9 +37,15 @@ public final class RecurringScheduleCalculator {
                     throw new BusinessException(400, "每月循环需要指定日期（1-31）");
                 }
             }
+            case CUSTOM -> {
+                if (rule.getScript() == null || rule.getScript().isBlank()) {
+                    throw new BusinessException(400, "自定义规则必须提供脚本");
+                }
+            }
             default -> throw new BusinessException(400, "不支持的循环频率: " + freq);
         }
-        if (rule.getTriggerTime() == null) {
+        // CUSTOM 由脚本决定触发时机，不需要固定时刻
+        if (!CUSTOM.equals(freq) && rule.getTriggerTime() == null) {
             throw new BusinessException(400, "触发时间不能为空");
         }
         if (rule.getDdlOffsetMinutes() == null || rule.getDdlOffsetMinutes() <= 0) {
@@ -47,8 +55,12 @@ public final class RecurringScheduleCalculator {
 
     /**
      * 计算严格晚于 after 的下一次触发时间。
+     * CUSTOM 模式返回 null —— 它不做提前推算，由调度器每分钟执行脚本判断。
      */
     public static LocalDateTime nextTriggerAfter(RecurringTodo rule, LocalDateTime after) {
+        if (CUSTOM.equals(rule.getFrequency())) {
+            return null;
+        }
         LocalDateTime candidate = switch (rule.getFrequency()) {
             case DAILY -> after.toLocalDate().atTime(rule.getTriggerTime());
             case WEEKLY -> {
@@ -90,6 +102,9 @@ public final class RecurringScheduleCalculator {
     /** 人类可读的频率描述，用于前端与 AI Prompt */
     public static String describe(RecurringTodo rule) {
         String time = rule.getTriggerTime() == null ? "?" : rule.getTriggerTime().toString();
+        if (CUSTOM.equals(rule.getFrequency())) {
+            return "自定义规则（脚本判断），" + describeOffset(rule.getDdlOffsetMinutes()) + "后截止";
+        }
         String when = switch (rule.getFrequency() == null ? "" : rule.getFrequency()) {
             case DAILY -> "每天 " + time;
             case WEEKLY -> "每周" + AiPromptBuilder.weekDayName(

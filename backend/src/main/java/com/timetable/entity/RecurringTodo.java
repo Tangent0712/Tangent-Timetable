@@ -19,14 +19,16 @@ public class RecurringTodo {
     private Long id;
     private String apiKey;
     private String title;
-    /** DAILY / WEEKLY / MONTHLY */
+    /** DAILY / WEEKLY / MONTHLY / CUSTOM */
     private String frequency;
     /** WEEKLY 时有效，1=周一 ... 7=周日 */
     private Integer dayOfWeek;
     /** MONTHLY 时有效，1-31；超出当月天数时取当月最后一天 */
     private Integer dayOfMonth;
-    /** 每次触发的时刻 */
+    /** 每次触发的时刻；CUSTOM 模式下为 null，由脚本自行判断 */
     private LocalTime triggerTime;
+    /** CUSTOM 模式下的用户脚本，需定义 shouldTrigger(ctx) 返回布尔值 */
+    private String script;
     /** 截止时间 = 触发时间 + 该分钟数 */
     private Integer ddlOffsetMinutes;
     private Boolean enabled;
@@ -51,6 +53,8 @@ public class RecurringTodo {
     public void setDayOfMonth(Integer dayOfMonth) { this.dayOfMonth = dayOfMonth; }
     public LocalTime getTriggerTime() { return triggerTime; }
     public void setTriggerTime(LocalTime triggerTime) { this.triggerTime = triggerTime; }
+    public String getScript() { return script; }
+    public void setScript(String script) { this.script = script; }
     public Integer getDdlOffsetMinutes() { return ddlOffsetMinutes; }
     public void setDdlOffsetMinutes(Integer ddlOffsetMinutes) { this.ddlOffsetMinutes = ddlOffsetMinutes; }
     public Boolean getEnabled() { return enabled; }

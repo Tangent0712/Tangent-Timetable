@@ -7,10 +7,13 @@ import com.timetable.interceptor.RequestContext;
 import com.timetable.service.AiService;
 import com.timetable.service.RecurringTodoService;
 import com.timetable.service.impl.AiServiceImpl;
+import com.timetable.service.impl.RecurringScriptEvaluator;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/recurring-todos")
@@ -60,6 +63,29 @@ public class RecurringTodoController {
         RecurringTodo rule = recurringTodoService.toggleEnabled(id, apiKey);
         aiService.invalidateProposalsOnDataChange(apiKey, AiServiceImpl.SCOPE_TODO);
         return ApiResponse.success(rule);
+    }
+
+    /** 自定义脚本的模板与可用上下文字段，供前端编辑器展示 */
+    @GetMapping("/script-template")
+    public ApiResponse<Map<String, Object>> scriptTemplate() {
+        Map<String, Object> data = new HashMap<>();
+        data.put("template", RecurringScriptEvaluator.SCRIPT_TEMPLATE);
+        data.put("maxLength", RecurringScriptEvaluator.MAX_SCRIPT_LENGTH);
+        data.put("context", RecurringScriptEvaluator.buildContext(
+                java.time.LocalDateTime.now(), null));
+        return ApiResponse.success(data);
+    }
+
+    /** 试运行脚本：校验语法并返回此刻是否会触发 */
+    @PostMapping("/test-script")
+    public ApiResponse<Map<String, Object>> testScript(@RequestBody Map<String, String> body) {
+        RecurringScriptEvaluator.ScriptResult r =
+                recurringTodoService.testScript(body.get("script"));
+        Map<String, Object> data = new HashMap<>();
+        data.put("valid", r.ok());
+        data.put("triggeredNow", r.triggered());
+        data.put("error", r.error());
+        return ApiResponse.success(data);
     }
 
     @PostMapping("/{id}/trigger")

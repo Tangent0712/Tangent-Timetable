@@ -50,6 +50,13 @@
             <artifactId>jackson-databind</artifactId>
         </dependency>
 
+        <!-- Rhino: 执行用户自定义的循环触发脚本（JS），配合 ClassShutter 做沙箱隔离 -->
+        <dependency>
+            <groupId>org.mozilla</groupId>
+            <artifactId>rhino</artifactId>
+            <version>1.7.14</version>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>

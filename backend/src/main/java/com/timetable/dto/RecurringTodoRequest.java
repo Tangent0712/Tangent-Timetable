@@ -15,8 +15,11 @@ public class RecurringTodoRequest {
     private Integer dayOfWeek;
     private Integer dayOfMonth;
 
-    @NotNull(message = "触发时间不能为空")
+    /** CUSTOM 模式下可为空 */
     private LocalTime triggerTime;
+
+    /** CUSTOM 模式下必填：用户脚本 */
+    private String script;
 
     @NotNull(message = "截止偏移不能为空")
     private Integer ddlOffsetMinutes;
@@ -34,6 +37,8 @@ public class RecurringTodoRequest {
     public void setDayOfMonth(Integer dayOfMonth) { this.dayOfMonth = dayOfMonth; }
     public LocalTime getTriggerTime() { return triggerTime; }
     public void setTriggerTime(LocalTime triggerTime) { this.triggerTime = triggerTime; }
+    public String getScript() { return script; }
+    public void setScript(String script) { this.script = script; }
     public Integer getDdlOffsetMinutes() { return ddlOffsetMinutes; }
     public void setDdlOffsetMinutes(Integer ddlOffsetMinutes) { this.ddlOffsetMinutes = ddlOffsetMinutes; }
     public Boolean getEnabled() { return enabled; }
