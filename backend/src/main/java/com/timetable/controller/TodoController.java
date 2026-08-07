@@ -4,6 +4,8 @@ import com.timetable.dto.ApiResponse;
 import com.timetable.dto.TodoRequest;
 import com.timetable.entity.Todo;
 import com.timetable.interceptor.RequestContext;
+import com.timetable.service.AiService;
+import com.timetable.service.impl.AiServiceImpl;
 import com.timetable.service.TodoService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
@@ -15,9 +17,11 @@ import java.util.List;
 public class TodoController {
 
     private final TodoService todoService;
+    private final AiService aiService;
 
-    public TodoController(TodoService todoService) {
+    public TodoController(TodoService todoService, AiService aiService) {
         this.todoService = todoService;
+        this.aiService = aiService;
     }
 
     @GetMapping
@@ -27,22 +31,33 @@ public class TodoController {
 
     @PostMapping
     public ApiResponse<Todo> create(@Valid @RequestBody TodoRequest request) {
-        return ApiResponse.success(todoService.create(request, RequestContext.getApiKey()));
+        String apiKey = RequestContext.getApiKey();
+        Todo todo = todoService.create(request, apiKey);
+        aiService.invalidateProposalsOnDataChange(apiKey, AiServiceImpl.SCOPE_TODO);
+        return ApiResponse.success(todo);
     }
 
     @PutMapping("/{id}")
     public ApiResponse<Todo> update(@PathVariable Long id, @Valid @RequestBody TodoRequest request) {
-        return ApiResponse.success(todoService.update(id, request, RequestContext.getApiKey()));
+        String apiKey = RequestContext.getApiKey();
+        Todo todo = todoService.update(id, request, apiKey);
+        aiService.invalidateProposalsOnDataChange(apiKey, AiServiceImpl.SCOPE_TODO);
+        return ApiResponse.success(todo);
     }
 
     @DeleteMapping("/{id}")
     public ApiResponse<Void> delete(@PathVariable Long id) {
-        todoService.delete(id, RequestContext.getApiKey());
+        String apiKey = RequestContext.getApiKey();
+        todoService.delete(id, apiKey);
+        aiService.invalidateProposalsOnDataChange(apiKey, AiServiceImpl.SCOPE_TODO);
         return ApiResponse.success(null);
     }
 
     @PutMapping("/{id}/toggle")
     public ApiResponse<Todo> toggleComplete(@PathVariable Long id) {
-        return ApiResponse.success(todoService.toggleComplete(id, RequestContext.getApiKey()));
+        String apiKey = RequestContext.getApiKey();
+        Todo todo = todoService.toggleComplete(id, apiKey);
+        aiService.invalidateProposalsOnDataChange(apiKey, AiServiceImpl.SCOPE_TODO);
+        return ApiResponse.success(todo);
     }
 }

@@ -11,3 +11,10 @@ target/
 *.swo
 .DS_Store
 application-local.yml
+
+node_modules/
+dist/
+.env
+.env.local
+npm-debug.log*
+.vite/

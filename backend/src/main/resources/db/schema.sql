@@ -52,3 +52,44 @@ CREATE TABLE IF NOT EXISTS todo (
     INDEX idx_ddl (ddl),
     INDEX idx_completed (completed)
 );
+
+CREATE TABLE IF NOT EXISTS ai_conversation (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    api_key VARCHAR(64) NOT NULL,
+    schedule_id BIGINT,
+    title VARCHAR(200),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (api_key) REFERENCES api_key(api_key) ON DELETE CASCADE,
+    INDEX idx_ai_conv_api_key (api_key)
+);
+
+CREATE TABLE IF NOT EXISTS ai_message (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    conversation_id BIGINT NOT NULL,
+    role VARCHAR(16) NOT NULL,
+    content TEXT,
+    action_type VARCHAR(32),
+    action_status VARCHAR(16),
+    action_data JSON,
+    data_fingerprint VARCHAR(64),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (conversation_id) REFERENCES ai_conversation(id) ON DELETE CASCADE,
+    INDEX idx_ai_msg_conv (conversation_id)
+);
+
+CREATE TABLE IF NOT EXISTS ai_action (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    message_id BIGINT NOT NULL,
+    api_key VARCHAR(64) NOT NULL,
+    scope VARCHAR(16) NOT NULL,
+    action_type VARCHAR(32) NOT NULL,
+    action_status VARCHAR(16) NOT NULL,
+    action_data JSON,
+    data_fingerprint VARCHAR(64),
+    sort_order INT NOT NULL DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (message_id) REFERENCES ai_message(id) ON DELETE CASCADE,
+    INDEX idx_ai_action_msg (message_id),
+    INDEX idx_ai_action_pending (api_key, scope, action_status)
+);
