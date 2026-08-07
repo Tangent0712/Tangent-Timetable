@@ -24,7 +24,8 @@
 | Web 前端 | Vite 5 + React 18 + TypeScript + Ant Design 5 *(已实现)* |
 | Android | Kotlin + Jetpack Compose *(尚未实现)* |
 | macOS | SwiftUI + WidgetKit *(尚未实现)* |
-| AI | DeepSeek API (deepseek-chat, JSON Mode) *(已实现)* |
+| AI | DeepSeek API (deepseek-v4-flash, JSON Mode + 流式) *(已实现)* |
+| 脚本沙箱 | Mozilla Rhino 1.7.14（自定义循环规则，ClassShutter 隔离） |
 
 ---
 
@@ -45,7 +46,9 @@ ToDoList- TimeTable/
 │       │   ├── config/
 │       │   │   ├── WebConfig.java             # CORS 配置
 │       │   │   ├── WebMvcConfig.java          # 拦截器注册
-│       │   │   └── DeepSeekProperties.java    # deepseek.api.* 配置绑定
+│       │   │   ├── DeepSeekProperties.java    # deepseek.api.* 配置绑定
+│       │   │   ├── JacksonConfig.java         # 宽松 LocalDateTime 反序列化
+│       │   │   └── RecurringTodoScheduler.java # 循环待办定时扫描 (60s)
 │       │   ├── controller/
 │       │   │   ├── AuthController.java        # /api/auth
 │       │   │   ├── ScheduleController.java    # /api/schedules
@@ -78,6 +81,9 @@ ToDoList- TimeTable/
 │       │   │   └── impl/
 │       │   │       ├── AiServiceImpl.java     # 提案存储 + execute 落库
 │       │   │       ├── AiPromptBuilder.java   # System Prompt (日期/周次/上下文注入)
+│       │   │       ├── JsonTextStreamExtractor.java # 流式增量提取 text 字段
+│       │   │       ├── RecurringScheduleCalculator.java # 触发时间推算
+│       │   │       ├── RecurringScriptEvaluator.java   # Rhino 沙箱 (安全关键)
 │       │   │       └── DeepSeekClientImpl.java # java.net.http.HttpClient
 │       │   ├── interceptor/
 │       │   │   ├── ApiKeyInterceptor.java     # X-API-Key 认证
@@ -106,7 +112,7 @@ ToDoList- TimeTable/
         ├── utils/
         │   ├── schedule.ts                 # 周次换算、倒计时格式化、周次区间解析
         │   └── color.ts                    # 课程名 → 稳定配色
-        ├── components/
+        ├── components/   # 含 RecurringFormModal / RecurringTodoPanel / CourseListView
         │   ├── AppLayout.tsx               # 顶栏导航 + 课表切换 + 周次显示 + 登出
         │   ├── TimetableGrid.tsx           # 7×12 网格，跨节 rowSpan，冲突选一+角标
         │   ├── CourseFormModal.tsx         # 课程增删改 + 周次快捷输入
@@ -175,7 +181,7 @@ npm run build        # tsc -b && vite build → dist/
 | `ai_conversation` | id (BIGINT AUTO) | AI 对话，含 api_key + schedule_id |
 | `ai_message` | id (BIGINT AUTO) | AI 消息，含 role/content（action_* 列已废弃，保留兼容） |
 | `ai_action` | id (BIGINT AUTO) | AI 操作提案，一条消息可有多条；含 scope/status/data/fingerprint |
-| `recurring_todo` | id (BIGINT AUTO) | 循环待办规则，含 frequency/触发时刻/截止偏移 |
+| `recurring_todo` | id (BIGINT AUTO) | 循环待办规则，含 frequency/触发时刻/截止偏移/自定义脚本 |
 
 ### MySQL 连接
 
@@ -222,6 +228,8 @@ npm run build        # tsc -b && vite build → dist/
 | DELETE | `/api/recurring-todos/{id}` | 删除循环规则（已生成待办保留） |
 | PUT | `/api/recurring-todos/{id}/toggle` | 启用/停用循环规则 |
 | POST | `/api/recurring-todos/{id}/trigger` | 立即触发生成一条待办 |
+| GET | `/api/recurring-todos/script-template` | 自定义脚本骨架 + 可用 ctx 字段 |
+| POST | `/api/recurring-todos/test-script` | 试运行脚本 → `{valid, triggeredNow, error}` |
 | GET | `/api/period-config` | 获取作息时间表 |
 | PUT | `/api/period-config` | 修改作息时间表 |
 | GET | `/api/ai/status` | AI 是否可用 `{enabled}` |
@@ -282,15 +290,50 @@ Controller → Service (接口) → ServiceImpl → Mapper (MyBatis-Plus)
 
 ## 8. 开发进度
 
+> 最后更新：2026-08-07
+
 | 阶段 | 内容 | 状态 |
 |------|------|------|
 | P0 后端核心 | 数据库建表、CRUD API、作息时间表 API | **已完成** |
-| P1 AI 集成 | DeepSeek 解析HTML、自然语言CRUD、多轮对话 | **已完成** |
+| P1 AI 集成 | DeepSeek 解析HTML、自然语言CRUD、多轮对话、流式输出 | **已完成** |
 | P2 Web 前端 | React + Ant Design 课表视图、待办、AI 对话、导入 | **已完成** |
+| P2.5 循环待办 | 每日/每周/每月规则、自动生成、AI 增删改查 | **已完成** |
+| P2.6 自定义循环规则 | Rhino 沙箱脚本引擎 | **后端完成，前端 + AI 未完成** |
 | P3 Android | 课表查看、待办查看、同步 | *未开始* |
 | P4 Android 小组件 | Glance 4x6 Widget、DDL倒计时 | *未开始* |
 | P5 Android 灵动岛 | FocusNotification + Shizuku + LiveUpdate | *未开始* |
 | P6 Mac 小组件 | SwiftUI Notification Center Widget | *未开始* |
+
+### 待开发事项（TODO）
+
+#### 1. 自定义循环规则 —— 收尾（优先级：高）
+
+后端已完成并通过安全验证（见 §10.1），**剩下两块**：
+
+- [ ] **前端脚本编辑器 UI**
+  - `RecurringFormModal` 的频率选项增加「自定义」，选中后展示脚本编辑区
+  - 调 `GET /api/recurring-todos/script-template` 取函数骨架预填
+  - 「测试脚本」按钮 → `POST /api/recurring-todos/test-script`，
+    展示语法是否合法、此刻是否会触发
+  - 列表页 `RecurringTodoPanel` 对 CUSTOM 规则展示「自定义」标签
+    （`describeFrequency` 需补 CUSTOM 分支，否则会落到 default）
+  - 类型定义：`RecurringFrequency` 加 `'CUSTOM'`，`RecurringTodo` 加 `script` 字段
+- [ ] **AI 助手支持写脚本**
+  - `AiPromptBuilder` 补充 CUSTOM 说明：可用 ctx 字段清单、
+    必须定义 `shouldTrigger(ctx)`、只能用纯 JS 不能访问任何 Java/IO
+  - `CREATE_RECURRING` / `UPDATE_RECURRING` 的 data 增加 `script` 字段透传
+    （`toRecurringRequest` 已支持读取，但 Prompt 未告知 AI 可以用）
+  - `AiActionCard` 对含 script 的提案展示代码块，供用户确认后一键应用
+  - 注意：AI 生成的脚本同样走保存前试运行校验，坏脚本不会入库
+
+#### 2. 已知问题 / 可改进
+
+- [ ] 前端打包体积 1.3MB（gzip 420KB），未做代码分割，
+      可用 `manualChunks` 拆分 antd
+- [ ] `MAX_CATCH_UP=5` 是硬编码，长期停机后会丢失更早的循环期次
+- [ ] AI 幻觉无法根除，只能靠 Prompt 约束；
+      执行层有所有权校验兜底，编造 id 只会 404
+- [ ] 循环待办目前无「跳过本期」功能，只能删除生成的待办
 
 ---
 
@@ -411,6 +454,56 @@ assistant 历史必须还原成「模型当初本该输出的合法 JSON」
 - 删除规则时**保留已生成的待办**，仅把 `recurring_id` 置空
   （MyBatis-Plus 的 `updateById` 忽略 null，这里用 `lambdaUpdate().set(...)` 显式置空）
 - 循环规则归入 `SCOPE_TODO` 作用域，其内容参与待办域指纹计算
+
+### 10.1 自定义循环规则（frequency=CUSTOM）
+
+固定的每日/每周/每月覆盖不了「双周的周五」「每月最后一个工作日」这类需求，
+因此支持用户写脚本决定触发时机。
+
+**为什么用 JavaScript（Rhino）而不是 Python**
+JVM 内嵌 Python（Jython 停滞在 2.7、GraalPy 体积大）沙箱难做；
+Rhino 提供 `ClassShutter` + 指令计数 + 栈深限制，可在进程内安全隔离，
+且 JS 对前端用户更友好、编辑器高亮现成。
+
+**契约**：用户脚本必须定义 `shouldTrigger(ctx)` 并返回**布尔值**
+（返回数字/字符串会被拒绝，避免 `"0"` 之类隐式转换造成误触发）。
+
+`ctx` 只包含纯数据，不暴露任何 Java 对象：
+
+| 字段 | 说明 |
+|------|------|
+| `year` / `month` / `day` | 年 / 月 / 日 |
+| `dayOfWeek` | 1=周一 … 7=周日 |
+| `hour` / `minute` | 时 / 分 |
+| `weekOfYear` | ISO 周序号（判断单双周用） |
+| `dayOfYear` / `daysInMonth` | 年内第几天 / 当月天数 |
+| `isLastDayOfMonth` / `isWeekend` | 是否月末 / 是否周末 |
+| `daysSinceLastTrigger` | 距上次触发天数（从未触发为 -1） |
+| `neverTriggered` | 是否从未触发 |
+
+**沙箱五层防护**（`RecurringScriptEvaluator`，均已逐项攻击验证）
+
+| 防护 | 拦截目标 |
+|------|---------|
+| `ClassShutter` 全量拒绝 | `java.lang.Runtime` / `Packages` / `java.io.File` → ReferenceError |
+| 指令计数（每 200 条观察） | 死循环、大数组分配；用 `Error` 抛出，脚本无法 try/catch 吞掉 |
+| `setMaximumInterpreterStackDepth(256)` | 无限递归 |
+| 堆增长哨兵 64MB + 工作线程内捕获 OOM/StackOverflow | 内存耗尽拖垮服务 |
+| `initSafeStandardObjects(sealed)` + 4000 字符上限 | 桥接逃逸、超大脚本 |
+
+> **踩坑记录**：最初只做了前两层，测试发现无限递归
+> （`function f(){return f();}`）会让 Rhino 解释器堆帧耗尽内存，
+> 抛出的 `OutOfMemoryError` 从工作线程传播到主线程，**整个 JVM 崩溃**。
+> 修复方式是栈深限制 + 在工作线程内捕获 `OutOfMemoryError`。
+> 结论：执行不可信代码时，光靠指令计数不够，必须同时限制内存与栈深。
+
+**运行机制**
+- CUSTOM 不预算 `next_trigger_at`（`nextTriggerAfter` 返回 null），
+  调度器每分钟执行一次脚本判断
+- 去重靠「同一分钟内不重复触发」（`last_triggered_at` 截断到分钟比较），
+  因为 60s 周期可能在同一分钟被扫到两次
+- **保存前强制试运行**，语法错误或不返回布尔值直接拒绝入库
+- 运行期出错的规则**自动停用**，避免每分钟反复报错刷日志
 
 ---
 
