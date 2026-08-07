@@ -18,3 +18,4 @@ dist/
 .env.local
 npm-debug.log*
 .vite/
+*.tsbuildinfo
