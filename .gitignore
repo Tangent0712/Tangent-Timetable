@@ -22,3 +22,9 @@ npm-debug.log*
 
 # 本地临时文件（测试脚本、日志等，不提交）
 tmp/
+
+# 敏感凭据（DB密码、API Key、DeepSeek Key 等，勿提交到公开仓库）
+docs/CREDENTIALS.md
+
+# 设计参考（含 node_modules、dist 与嵌套 .git，不提交）
+UIdesign/

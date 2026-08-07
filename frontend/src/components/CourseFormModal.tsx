@@ -115,6 +115,7 @@ export default function CourseFormModal({
   return (
     <Modal
       open={open}
+      maskClosable={false}
       title={course ? '编辑课程' : '添加课程'}
       onCancel={onCancel}
       width={620}

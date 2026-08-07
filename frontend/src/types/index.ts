@@ -7,6 +7,7 @@ export interface ApiResponse<T> {
 export interface AuthVerifyResponse {
   valid: boolean
   label: string
+  avatarUrl: string | null
 }
 
 export interface Schedule {
@@ -46,7 +47,7 @@ export interface Todo {
   updatedAt?: string
 }
 
-export type RecurringFrequency = 'DAILY' | 'WEEKLY' | 'MONTHLY'
+export type RecurringFrequency = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'CUSTOM'
 
 export interface RecurringTodo {
   id: number
@@ -54,7 +55,9 @@ export interface RecurringTodo {
   frequency: RecurringFrequency
   dayOfWeek: number | null
   dayOfMonth: number | null
-  triggerTime: string
+  triggerTime: string | null
+  /** CUSTOM 模式下的用户脚本，需定义 shouldTrigger(ctx) 返回布尔值 */
+  script: string | null
   ddlOffsetMinutes: number
   enabled: boolean
   chainAfterComplete: boolean
@@ -66,6 +69,20 @@ export type RecurringTodoPayload = Omit<
   RecurringTodo,
   'id' | 'lastTriggeredAt' | 'nextTriggerAt'
 >
+
+/** GET /api/recurring-todos/script-template 的返回 */
+export interface RecurringScriptTemplate {
+  template: string
+  maxLength: number
+  context: Record<string, unknown>
+}
+
+/** POST /api/recurring-todos/test-script 的返回 */
+export interface RecurringScriptTestResult {
+  valid: boolean
+  triggeredNow: boolean
+  error: string | null
+}
 
 export type PeriodCategory = 'MORNING' | 'AFTERNOON' | 'EVENING'
 

@@ -10,12 +10,15 @@ public class ApiKey {
     @TableId
     private String apiKey;
     private String label;
+    private String avatarUrl;
     private LocalDateTime createdAt;
 
     public String getApiKey() { return apiKey; }
     public void setApiKey(String apiKey) { this.apiKey = apiKey; }
     public String getLabel() { return label; }
     public void setLabel(String label) { this.label = label; }
+    public String getAvatarUrl() { return avatarUrl; }
+    public void setAvatarUrl(String avatarUrl) { this.avatarUrl = avatarUrl; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 }

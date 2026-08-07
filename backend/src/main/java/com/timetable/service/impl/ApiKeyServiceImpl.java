@@ -21,6 +21,6 @@ public class ApiKeyServiceImpl implements ApiKeyService {
         if (key == null) {
             return new AuthVerifyResponse(false, null);
         }
-        return new AuthVerifyResponse(true, key.getLabel());
+        return new AuthVerifyResponse(true, key.getLabel(), key.getAvatarUrl());
     }
 }

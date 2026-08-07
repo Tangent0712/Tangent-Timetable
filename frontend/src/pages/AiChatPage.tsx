@@ -3,17 +3,17 @@ import {
   Alert,
   Button,
   Card,
+  Checkbox,
   Empty,
   Input,
   List,
-  Popconfirm,
   Space,
   Spin,
   Tag,
   Typography,
   message,
 } from 'antd'
-import { DeleteOutlined, PlusOutlined, SendOutlined } from '@ant-design/icons'
+import { DeleteOutlined, EditOutlined, PlusOutlined, SendOutlined } from '@ant-design/icons'
 import AiActionCard from '../components/AiActionCard'
 import { aiApi } from '../api'
 import { useApp } from '../store/AppContext'
@@ -45,6 +45,9 @@ export default function AiChatPage() {
   const [input, setInput] = useState('')
   const [loadingMessages, setLoadingMessages] = useState(false)
   const [executingId, setExecutingId] = useState<number | null>(null)
+  const [listMode, setListMode] = useState<'normal' | 'edit' | 'delete'>('normal')
+  const [edits, setEdits] = useState<Record<number, string>>({})
+  const [deleteSelected, setDeleteSelected] = useState<number[]>([])
   // 关键：流式状态按 conversationId 存储，避免串台到其他对话
   const [streams, setStreams] = useState<Record<number, StreamState>>({})
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -146,13 +149,54 @@ export default function AiChatPage() {
     }
   }
 
-  const rename = async (id: number, title: string) => {
+  const startBatchEdit = () => {
+    setEdits(Object.fromEntries(conversations.map((c) => [c.id, c.title || ''])))
+    setListMode('edit')
+  }
+
+  const cancelBatchEdit = () => {
+    setListMode('normal')
+    setEdits({})
+  }
+
+  const saveBatchEdit = async () => {
     try {
-      await aiApi.renameConversation(id, title)
+      await Promise.all(
+        conversations.map((c) => {
+          const t = (edits[c.id] ?? '').trim()
+          if (t && t !== c.title) return aiApi.renameConversation(c.id, t)
+          return Promise.resolve()
+        }),
+      )
       await loadConversations()
+      setListMode('normal')
+      setEdits({})
     } catch (e) {
-      message.error(e instanceof Error ? e.message : '重命名失败')
+      message.error(e instanceof Error ? e.message : '保存失败')
     }
+  }
+
+  const startBatchDelete = () => {
+    setDeleteSelected([])
+    setListMode('delete')
+  }
+
+  const cancelBatchDelete = () => {
+    setListMode('normal')
+    setDeleteSelected([])
+  }
+
+  const toggleDeleteSelect = (id: number) => {
+    setDeleteSelected((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    )
+  }
+
+  const doBatchDelete = async () => {
+    if (deleteSelected.length === 0) return
+    await Promise.all(deleteSelected.map((id) => deleteConversation(id)))
+    setListMode('normal')
+    setDeleteSelected([])
   }
 
   const send = async () => {
@@ -248,77 +292,125 @@ export default function AiChatPage() {
     : null
 
   return (
-    <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+    <div style={{ display: 'flex', gap: 16, flex: 1, minHeight: 0 }}>
       <Card
         size="small"
-        title="对话"
-        style={{ width: 240, flexShrink: 0 }}
+        title="对话记录"
+        style={{ width: 240, flexShrink: 0, display: 'flex', flexDirection: 'column' }}
+        bodyStyle={{ overflowY: 'auto', overflowX: 'hidden', flex: 1, minHeight: 0, padding: '8px 12px' }}
         extra={
-          <Button
-            size="small"
-            type="text"
-            icon={<PlusOutlined />}
-            onClick={newConversation}
-          />
+          listMode === 'normal' ? (
+            <Space size={2}>
+              <Button
+                size="small"
+                type="text"
+                icon={<EditOutlined />}
+                title="批量编辑"
+                onClick={startBatchEdit}
+              />
+              <Button
+                size="small"
+                type="text"
+                danger
+                icon={<DeleteOutlined />}
+                title="批量删除"
+                onClick={startBatchDelete}
+              />
+              <Button
+                size="small"
+                type="text"
+                icon={<PlusOutlined />}
+                title="新建对话"
+                onClick={newConversation}
+              />
+            </Space>
+          ) : listMode === 'edit' ? (
+            <Space size={2}>
+              <Button size="small" type="primary" onClick={saveBatchEdit}>
+                保存
+              </Button>
+              <Button size="small" onClick={cancelBatchEdit}>
+                取消
+              </Button>
+            </Space>
+          ) : (
+            <Space size={2}>
+              <Button
+                size="small"
+                type="primary"
+                danger
+                disabled={deleteSelected.length === 0}
+                onClick={doBatchDelete}
+              >
+                删除({deleteSelected.length})
+              </Button>
+              <Button size="small" onClick={cancelBatchDelete}>
+                取消
+              </Button>
+            </Space>
+          )
         }
       >
         <List
           size="small"
           dataSource={conversations}
           locale={{ emptyText: '暂无对话' }}
-          renderItem={(conv) => (
-            <List.Item
-              style={{
-                cursor: 'pointer',
-                background: conv.id === currentId ? '#e6f4ff' : undefined,
-                borderRadius: 6,
-                paddingInline: 8,
-              }}
-              onClick={() => setCurrentId(conv.id)}
-              actions={[
-                <Popconfirm
-                  key="del"
-                  title="删除该对话？"
-                  okText="删除"
-                  cancelText="取消"
-                  onConfirm={() => deleteConversation(conv.id)}
-                >
-                  <Button
-                    size="small"
-                    type="text"
-                    danger
-                    icon={<DeleteOutlined />}
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                </Popconfirm>,
-              ]}
-            >
-              <Space size={4}>
-                <Typography.Text
-                  ellipsis
-                  editable={{
-                    onChange: (v) => {
-                      const t = v.trim()
-                      if (t && t !== conv.title) rename(conv.id, t)
-                    },
-                    tooltip: '点击重命名',
-                    triggerType: ['icon'],
-                  }}
-                  style={{ maxWidth: 110 }}
-                >
-                  {conv.title || '新对话'}
-                </Typography.Text>
-                {streams[conv.id] && <Spin size="small" />}
-              </Space>
-            </List.Item>
-          )}
+          renderItem={(conv) => {
+            const selected = deleteSelected.includes(conv.id)
+            const active = listMode === 'normal' && conv.id === currentId
+            return (
+              <List.Item
+                style={{
+                  cursor: listMode === 'normal' ? 'pointer' : 'default',
+                  background: active || selected ? 'var(--accent)' : undefined,
+                  borderRadius: 4,
+                  paddingInline: 8,
+                }}
+                onClick={() => {
+                  if (listMode === 'normal') setCurrentId(conv.id)
+                  else if (listMode === 'delete') toggleDeleteSelect(conv.id)
+                }}
+              >
+                <Space size={4} style={{ width: '100%' }}>
+                  {listMode === 'delete' && (
+                    <Checkbox
+                      checked={selected}
+                      onChange={() => toggleDeleteSelect(conv.id)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  )}
+                  {listMode === 'edit' ? (
+                    <Input
+                      size="small"
+                      value={edits[conv.id] ?? ''}
+                      onChange={(e) =>
+                        setEdits((prev) => ({ ...prev, [conv.id]: e.target.value }))
+                      }
+                      onClick={(e) => e.stopPropagation()}
+                      style={{ width: '100%' }}
+                    />
+                  ) : (
+                    <Typography.Text
+                      ellipsis
+                      style={listMode === 'delete' ? { maxWidth: 140, flex: 1 } : { maxWidth: 180, flex: 1 }}
+                    >
+                      {conv.title || '新对话'}
+                    </Typography.Text>
+                  )}
+                  {streams[conv.id] && <Spin size="small" />}
+                </Space>
+              </List.Item>
+            )
+          }}
         />
       </Card>
 
       <Card
-        style={{ flex: 1, minWidth: 0 }}
+        size="small"
+        style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}
+        bodyStyle={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, padding: 16 }}
         title={
-          <Space wrap>
+          <Space wrap={false}>
             <span>AI 助手</span>
             {activeSchedule ? (
               <>
@@ -337,7 +429,7 @@ export default function AiChatPage() {
             showIcon
             message="AI 功能未启用"
             description="后端未配置 DEEPSEEK_API_KEY 环境变量，请设置后重启服务。"
-            style={{ marginBottom: 16 }}
+            style={{ marginBottom: 12, flexShrink: 0 }}
           />
         )}
 

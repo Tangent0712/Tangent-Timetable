@@ -8,6 +8,8 @@ import type {
   CoursePayload,
   ParseHtmlResult,
   PeriodConfig,
+  RecurringScriptTemplate,
+  RecurringScriptTestResult,
   RecurringTodo,
   RecurringTodoPayload,
   Schedule,
@@ -67,6 +69,13 @@ export const recurringApi = {
     request<RecurringTodo>(`/recurring-todos/${id}/toggle`, { method: 'PUT' }),
   triggerNow: (id: number) =>
     request<RecurringTodo>(`/recurring-todos/${id}/trigger`, { method: 'POST' }),
+  scriptTemplate: () =>
+    request<RecurringScriptTemplate>('/recurring-todos/script-template'),
+  testScript: (script: string) =>
+    request<RecurringScriptTestResult>('/recurring-todos/test-script', {
+      method: 'POST',
+      body: { script },
+    }),
 }
 
 export const periodApi = {

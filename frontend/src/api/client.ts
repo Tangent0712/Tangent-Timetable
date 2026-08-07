@@ -2,6 +2,7 @@ import type { ApiResponse } from '../types'
 
 const API_KEY_STORAGE = 'timetable.apiKey'
 const API_LABEL_STORAGE = 'timetable.apiLabel'
+const API_AVATAR_STORAGE = 'timetable.apiAvatarUrl'
 
 export const BASE_URL = import.meta.env.VITE_API_BASE ?? '/api'
 
@@ -9,18 +10,28 @@ export function getApiKey(): string | null {
   return localStorage.getItem(API_KEY_STORAGE)
 }
 
-export function setApiKey(key: string, label: string) {
+export function setApiKey(key: string, label: string, avatarUrl?: string | null) {
   localStorage.setItem(API_KEY_STORAGE, key)
   localStorage.setItem(API_LABEL_STORAGE, label)
+  if (avatarUrl) {
+    localStorage.setItem(API_AVATAR_STORAGE, avatarUrl)
+  } else {
+    localStorage.removeItem(API_AVATAR_STORAGE)
+  }
 }
 
 export function getLabel(): string {
   return localStorage.getItem(API_LABEL_STORAGE) ?? ''
 }
 
+export function getAvatarUrl(): string | null {
+  return localStorage.getItem(API_AVATAR_STORAGE)
+}
+
 export function clearApiKey() {
   localStorage.removeItem(API_KEY_STORAGE)
   localStorage.removeItem(API_LABEL_STORAGE)
+  localStorage.removeItem(API_AVATAR_STORAGE)
 }
 
 export class ApiError extends Error {

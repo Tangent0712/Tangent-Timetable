@@ -3,8 +3,6 @@ import {
   Alert,
   Button,
   Card,
-  Descriptions,
-  Popconfirm,
   Select,
   Space,
   Table,
@@ -28,7 +26,7 @@ const CATEGORY_OPTIONS: { value: PeriodCategory; label: string }[] = [
 ]
 
 export default function SettingsPage() {
-  const { periods, refreshPeriods, label, logout } = useApp()
+  const { periods, refreshPeriods } = useApp()
   const [rows, setRows] = useState<PeriodConfig[]>([])
   const [saving, setSaving] = useState(false)
   const [dirty, setDirty] = useState(false)
@@ -131,16 +129,6 @@ export default function SettingsPage() {
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Card title="账号">
-        <Descriptions column={1} size="small">
-          <Descriptions.Item label="当前用户">{label || '—'}</Descriptions.Item>
-          <Descriptions.Item label="数据同步">每 30 秒自动拉取一次</Descriptions.Item>
-        </Descriptions>
-        <Popconfirm title="确定登出？本地 API Key 将被清除" onConfirm={logout} okText="登出" cancelText="取消">
-          <Button danger>登出</Button>
-        </Popconfirm>
-      </Card>
-
       <Card
         title="作息时间表"
         extra={

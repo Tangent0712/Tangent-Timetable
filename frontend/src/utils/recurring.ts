@@ -24,6 +24,8 @@ export function describeFrequency(rule: RecurringTodo): string {
       return `每${weekDayName(rule.dayOfWeek ?? 0).replace('周', '周')} ${time}`
     case 'MONTHLY':
       return `每月 ${rule.dayOfMonth} 号 ${time}`
+    case 'CUSTOM':
+      return '自定义脚本'
     default:
       return time
   }
@@ -33,4 +35,5 @@ export const FREQUENCY_LABELS: Record<string, string> = {
   DAILY: '每天',
   WEEKLY: '每周',
   MONTHLY: '每月',
+  CUSTOM: '自定义',
 }

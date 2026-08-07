@@ -65,10 +65,10 @@ public final class AiPromptBuilder {
                 .append("- UPDATE_TODO: {\"todos\":[{\"id\":待办id,\"title\":\"标题\",\"ddl\":\"yyyy-MM-dd HH:mm\"}]}\n")
                 .append("- DELETE_TODO: {\"todoIds\":[待办id数组]}\n")
                 .append("- TOGGLE_TODO: {\"todoIds\":[待办id数组]}\n")
-                .append("- CREATE_RECURRING: {\"rules\":[{\"title\":\"标题\",\"frequency\":\"DAILY|WEEKLY|MONTHLY\",")
+                .append("- CREATE_RECURRING: {\"rules\":[{\"title\":\"标题\",\"frequency\":\"DAILY|WEEKLY|MONTHLY|CUSTOM\",")
                 .append("\"dayOfWeek\":1-7（WEEKLY 必填）,\"dayOfMonth\":1-31（MONTHLY 必填）,")
-                .append("\"triggerTime\":\"HH:mm\",\"ddlOffsetMinutes\":从触发到截止的分钟数,")
-                .append("\"chainAfterComplete\":true/false}]}\n")
+                .append("\"triggerTime\":\"HH:mm\"（CUSTOM 不需要）,\"ddlOffsetMinutes\":从触发到截止的分钟数,")
+                .append("\"chainAfterComplete\":true/false,\"script\":\"自定义脚本\"（仅 CUSTOM 必填）}]}\n")
                 .append("- UPDATE_RECURRING: {\"rules\":[{\"id\":规则id, 其余字段同上（需携带完整字段）}]}\n")
                 .append("- DELETE_RECURRING: {\"recurringIds\":[规则id数组]}\n")
                 .append("- TOGGLE_RECURRING: {\"recurringIds\":[规则id数组]}（启用/停用切换）\n\n");
@@ -84,6 +84,25 @@ public final class AiPromptBuilder {
                 .append("除非用户明确说「删除」\n")
                 .append("- 区分清楚：「下周五交作业」是一次性待办（CREATE_TODO）；")
                 .append("「每周五提醒我」才是循环规则（CREATE_RECURRING）\n\n");
+
+        sb.append("## 自定义循环规则（frequency=CUSTOM）\n")
+                .append("固定的每日/每周/每月覆盖不了「双周的周五」「每月最后一个工作日」这类需求，")
+                .append("此时用 CUSTOM 并提供一段 JavaScript 脚本，由脚本决定触发时机。\n")
+                .append("- 脚本必须定义 function shouldTrigger(ctx) 并返回布尔值（true=此刻触发）\n")
+                .append("- 只能用纯 JavaScript，不能访问任何 Java 对象、不能 import、不能调用 IO\n")
+                .append("- 不需要 triggerTime（CUSTOM 由脚本自行判断时刻）\n")
+                .append("- ctx 可用字段：\n")
+                .append("    ctx.year / ctx.month / ctx.day（年月日）\n")
+                .append("    ctx.dayOfWeek（1=周一...7=周日）/ ctx.dayOfYear\n")
+                .append("    ctx.hour / ctx.minute（时、分）\n")
+                .append("    ctx.weekOfYear（ISO 周序号，可用 % 2 判断单双周）\n")
+                .append("    ctx.daysInMonth / ctx.isLastDayOfMonth / ctx.isWeekend\n")
+                .append("    ctx.daysSinceLastTrigger（距上次触发天数，从未触发为 -1）\n")
+                .append("    ctx.neverTriggered（是否从未触发过）\n")
+                .append("- 系统每分钟执行一次脚本，同一分钟内只触发一次\n")
+                .append("- 示例「每逢双周的周五 12:00」：\n")
+                .append("    frequency=\"CUSTOM\", script=\"function shouldTrigger(ctx){return ctx.dayOfWeek===5 && ctx.hour===12 && ctx.minute===0 && ctx.weekOfYear%2===0;}\"\n")
+                .append("- 脚本会保存前试运行校验，语法错误或不返回布尔值会被拒绝入库\n\n");
 
         sb.append("## 诚实原则（非常重要）\n")
                 .append("- 你只能做上面列出的 7 种操作。用户要求超出这个范围时（例如查天气、")
@@ -215,8 +234,11 @@ public final class AiPromptBuilder {
                         .append(" 截止偏移=").append(r.getDdlOffsetMinutes()).append("分钟")
                         .append(" 状态=").append(Boolean.TRUE.equals(r.getEnabled()) ? "启用" : "已停用")
                         .append(" 完成后接下一期=").append(Boolean.TRUE.equals(r.getChainAfterComplete()) ? "是" : "否")
-                        .append(" 下次触发=").append(r.getNextTriggerAt())
-                        .append("\n");
+                        .append(" 下次触发=").append(r.getNextTriggerAt());
+                if (r.getScript() != null && !r.getScript().isBlank()) {
+                    sb.append(" 脚本=").append(r.getScript());
+                }
+                sb.append("\n");
             }
         }
         return sb.toString();

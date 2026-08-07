@@ -11,6 +11,8 @@
 - **Git 仓库**: `main` 分支
 - **详细需求**: `docs/PRD.md` (v0.5)
 - **Android 灵动岛技术指南**: `docs/SUPER_ISLAND_INTEGRATION_GUIDE.md`
+- **生产环境**: https://todo.tangent0712.top （已上线，部署见 `docs/DEPLOYMENT.md`）
+- **账号与密钥**: `docs/CREDENTIALS.md` ⚠️ 含敏感信息，勿提交到公开仓库
 
 ---
 
@@ -36,7 +38,9 @@ ToDoList- TimeTable/
 ├── .gitignore
 ├── docs/
 │   ├── PRD.md                              # 产品需求文档
-│   └── SUPER_ISLAND_INTEGRATION_GUIDE.md   # 小米超级岛技术指南
+│   ├── SUPER_ISLAND_INTEGRATION_GUIDE.md   # 小米超级岛技术指南
+│   ├── DEPLOYMENT.md                       # 生产部署与运维指南
+│   └── CREDENTIALS.md                      # ⚠️ 账号/密钥/密码（勿公开）
 ├── AGENTS.md                               # 本文件
 ├── backend/                                # Spring Boot 后端 (已实现)
 │   ├── pom.xml
@@ -296,37 +300,20 @@ Controller → Service (接口) → ServiceImpl → Mapper (MyBatis-Plus)
 |------|------|------|
 | P0 后端核心 | 数据库建表、CRUD API、作息时间表 API | **已完成** |
 | P1 AI 集成 | DeepSeek 解析HTML、自然语言CRUD、多轮对话、流式输出 | **已完成** |
-| P2 Web 前端 | React + Ant Design 课表视图、待办、AI 对话、导入 | **已完成** |
+| P2 Web 前端 | React + Ant Design 课表视图、待办、AI 对话、导入 | **已完成（已上线 https://todo.tangent0712.top）** |
 | P2.5 循环待办 | 每日/每周/每月规则、自动生成、AI 增删改查 | **已完成** |
-| P2.6 自定义循环规则 | Rhino 沙箱脚本引擎 | **后端完成，前端 + AI 未完成** |
+| P2.6 自定义循环规则 | Rhino 沙箱脚本引擎 | **已完成** |
 | P3 Android | 课表查看、待办查看、同步 | *未开始* |
 | P4 Android 小组件 | Glance 4x6 Widget、DDL倒计时 | *未开始* |
 | P5 Android 灵动岛 | FocusNotification + Shizuku + LiveUpdate | *未开始* |
 | P6 Mac 小组件 | SwiftUI Notification Center Widget | *未开始* |
 
+> **生产部署已完成**：站点 https://todo.tangent0712.top，后端跑在 <REDACTED_SERVER_IP>:8200。
+> 部署与运维见 `docs/DEPLOYMENT.md`，全部账号/密钥见 `docs/CREDENTIALS.md`（敏感，勿提交）。
+
 ### 待开发事项（TODO）
 
-#### 1. 自定义循环规则 —— 收尾（优先级：高）
-
-后端已完成并通过安全验证（见 §10.1），**剩下两块**：
-
-- [ ] **前端脚本编辑器 UI**
-  - `RecurringFormModal` 的频率选项增加「自定义」，选中后展示脚本编辑区
-  - 调 `GET /api/recurring-todos/script-template` 取函数骨架预填
-  - 「测试脚本」按钮 → `POST /api/recurring-todos/test-script`，
-    展示语法是否合法、此刻是否会触发
-  - 列表页 `RecurringTodoPanel` 对 CUSTOM 规则展示「自定义」标签
-    （`describeFrequency` 需补 CUSTOM 分支，否则会落到 default）
-  - 类型定义：`RecurringFrequency` 加 `'CUSTOM'`，`RecurringTodo` 加 `script` 字段
-- [ ] **AI 助手支持写脚本**
-  - `AiPromptBuilder` 补充 CUSTOM 说明：可用 ctx 字段清单、
-    必须定义 `shouldTrigger(ctx)`、只能用纯 JS 不能访问任何 Java/IO
-  - `CREATE_RECURRING` / `UPDATE_RECURRING` 的 data 增加 `script` 字段透传
-    （`toRecurringRequest` 已支持读取，但 Prompt 未告知 AI 可以用）
-  - `AiActionCard` 对含 script 的提案展示代码块，供用户确认后一键应用
-  - 注意：AI 生成的脚本同样走保存前试运行校验，坏脚本不会入库
-
-#### 2. 已知问题 / 可改进
+#### 1. 已知问题 / 可改进
 
 - [ ] 前端打包体积 1.3MB（gzip 420KB），未做代码分割，
       可用 `manualChunks` 拆分 antd

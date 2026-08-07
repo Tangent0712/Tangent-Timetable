@@ -157,7 +157,7 @@ export default function TodosPage() {
         </Space>
       </div>
 
-      <Card>
+      <Card style={{ marginTop: 16 }} bodyStyle={{ padding: '4px 12px' }}>
         <List
           dataSource={visible}
           locale={{ emptyText: <Empty description="暂无待办" /> }}
@@ -248,6 +248,7 @@ export default function TodosPage() {
 
       <Modal
         open={modal.open}
+        maskClosable={false}
         title={modal.todo ? '编辑待办' : '新建待办'}
         onCancel={() => setModal({ open: false, todo: null })}
         onOk={submit}

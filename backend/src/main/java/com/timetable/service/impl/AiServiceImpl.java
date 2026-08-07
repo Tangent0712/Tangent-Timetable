@@ -221,6 +221,7 @@ public class AiServiceImpl implements AiService {
                 sb.append(r.getId()).append(':').append(r.getTitle()).append(':')
                         .append(r.getFrequency()).append(':').append(r.getDayOfWeek()).append(':')
                         .append(r.getDayOfMonth()).append(':').append(r.getTriggerTime()).append(':')
+                        .append(r.getScript()).append(':')
                         .append(r.getDdlOffsetMinutes()).append(':').append(r.getEnabled()).append(':')
                         .append(r.getChainAfterComplete()).append(';');
             }
@@ -617,6 +618,7 @@ public class AiServiceImpl implements AiService {
         node.put("dayOfWeek", r.getDayOfWeek());
         node.put("dayOfMonth", r.getDayOfMonth());
         node.put("triggerTime", r.getTriggerTime() == null ? null : r.getTriggerTime().toString());
+        node.put("script", r.getScript());
         node.put("ddlOffsetMinutes", r.getDdlOffsetMinutes());
         node.put("enabled", r.getEnabled());
         node.put("chainAfterComplete", r.getChainAfterComplete());
@@ -871,12 +873,16 @@ public class AiServiceImpl implements AiService {
         req.setFrequency(freq.toUpperCase());
         req.setDayOfWeek(node.hasNonNull("dayOfWeek") ? node.get("dayOfWeek").asInt() : null);
         req.setDayOfMonth(node.hasNonNull("dayOfMonth") ? node.get("dayOfMonth").asInt() : null);
+        req.setScript(textOrNull(node, "script"));
 
-        String time = textOrNull(node, "triggerTime");
-        if (time == null) {
-            throw new BusinessException(400, "循环任务缺少触发时间");
+        // CUSTOM 由脚本决定触发时机，不需要 triggerTime；其余频率必须有触发时刻
+        if (!RecurringScheduleCalculator.CUSTOM.equals(req.getFrequency())) {
+            String time = textOrNull(node, "triggerTime");
+            if (time == null) {
+                throw new BusinessException(400, "循环任务缺少触发时间");
+            }
+            req.setTriggerTime(parseTime(time));
         }
-        req.setTriggerTime(parseTime(time));
 
         if (!node.hasNonNull("ddlOffsetMinutes")) {
             throw new BusinessException(400, "循环任务缺少截止偏移时间");

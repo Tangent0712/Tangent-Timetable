@@ -12,6 +12,7 @@ import { message } from 'antd'
 import {
   clearApiKey,
   getApiKey,
+  getAvatarUrl,
   getLabel,
   onUnauthorized,
   setApiKey as persistApiKey,
@@ -26,6 +27,7 @@ interface AppState {
   ready: boolean
   authed: boolean
   label: string
+  avatarUrl: string | null
   schedules: Schedule[]
   activeScheduleId: number | null
   activeSchedule: Schedule | null
@@ -51,6 +53,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false)
   const [authed, setAuthed] = useState(false)
   const [label, setLabel] = useState(getLabel())
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(getAvatarUrl())
   const [schedules, setSchedules] = useState<Schedule[]>([])
   const [activeScheduleId, setActiveScheduleIdState] = useState<number | null>(() => {
     const stored = localStorage.getItem(ACTIVE_SCHEDULE_STORAGE)
@@ -75,6 +78,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     clearApiKey()
     setAuthed(false)
     setLabel('')
+    setAvatarUrl(null)
     setSchedules([])
     setCourses([])
     setTodos([])
@@ -142,8 +146,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     async (key: string) => {
       const result = await authApi.verify(key)
       if (!result.valid) throw new Error('API Key 无效')
-      persistApiKey(key, result.label)
+      persistApiKey(key, result.label, result.avatarUrl)
       setLabel(result.label)
+      setAvatarUrl(result.avatarUrl ?? null)
       setAuthed(true)
     },
     [],
@@ -161,6 +166,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (res.valid) {
           setAuthed(true)
           setLabel(res.label)
+          setAvatarUrl(res.avatarUrl ?? null)
         } else {
           clearApiKey()
         }
@@ -198,6 +204,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     ready,
     authed,
     label,
+    avatarUrl,
     schedules,
     activeScheduleId,
     activeSchedule,

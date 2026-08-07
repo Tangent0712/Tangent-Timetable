@@ -5,7 +5,6 @@ import {
   Empty,
   Radio,
   Segmented,
-  Slider,
   Space,
   Typography,
   message,
@@ -21,6 +20,7 @@ import TimetableGrid from '../components/TimetableGrid'
 import CourseListView from '../components/CourseListView'
 import CourseFormModal from '../components/CourseFormModal'
 import ScheduleManagerModal from '../components/ScheduleManagerModal'
+import ScheduleCreateModal from '../components/ScheduleCreateModal'
 import ImportHtmlModal from '../components/ImportHtmlModal'
 import { aiApi, courseApi, scheduleApi } from '../api'
 import { useApp } from '../store/AppContext'
@@ -47,6 +47,7 @@ export default function TimetablePage() {
   }>({ open: false, course: null, defaults: null })
   const [saving, setSaving] = useState(false)
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false)
+  const [createOpen, setCreateOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [aiEnabled, setAiEnabled] = useState(false)
 
@@ -140,11 +141,16 @@ export default function TimetablePage() {
       <Card>
         <Empty description="还没有课表，先创建一个学期课表吧">
           <Space>
-            <Button type="primary" onClick={() => setScheduleModalOpen(true)}>
+            <Button type="primary" onClick={() => setCreateOpen(true)}>
               新建课表
             </Button>
           </Space>
         </Empty>
+        <ScheduleCreateModal
+          open={createOpen}
+          onCancel={() => setCreateOpen(false)}
+          onCreate={createSchedule}
+        />
         <ScheduleManagerModal
           open={scheduleModalOpen}
           schedules={schedules}
@@ -180,8 +186,8 @@ export default function TimetablePage() {
                 disabled={week <= 1}
                 onClick={() => setWeek((w) => Math.max(1, w - 1))}
               />
-              <Typography.Text strong style={{ minWidth: 68, textAlign: 'center' }}>
-                第 {week} 周
+              <Typography.Text strong style={{ minWidth: 110, textAlign: 'center' }}>
+                第 {week} 周 / 共 {total} 周
               </Typography.Text>
               <Button
                 size="small"
@@ -212,18 +218,6 @@ export default function TimetablePage() {
           </Button>
         </Space>
       </div>
-
-      {viewMode === 'week' && total > 1 && (
-        <Card size="small" style={{ marginBottom: 12 }}>
-          <Slider
-            min={1}
-            max={total}
-            value={week}
-            onChange={setWeek}
-            marks={{ 1: '1', [realCurrentWeek]: '本周', [total]: String(total) }}
-          />
-        </Card>
-      )}
 
       {viewMode === 'week' ? (
         <TimetableGrid

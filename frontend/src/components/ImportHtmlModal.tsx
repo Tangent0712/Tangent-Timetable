@@ -122,6 +122,7 @@ export default function ImportHtmlModal({
   return (
     <Modal
       open={open}
+      maskClosable={false}
       title="从教务系统导入课表"
       onCancel={close}
       width={960}
@@ -150,7 +151,7 @@ export default function ImportHtmlModal({
       {step === 0 && (
         <>
           <Typography.Paragraph type="secondary">
-            打开教务系统课表页面，全选复制页面内容或 HTML 源码后粘贴到下方，AI 会自动解析成课程列表。
+            在你自己浏览器里登录教务系统并打开课程表页面，按 Ctrl+A 全选页面后复制（或查看网页源码全选复制），粘贴到下方，AI 会自动解析成课程列表。
           </Typography.Paragraph>
           <Input.TextArea
             rows={12}

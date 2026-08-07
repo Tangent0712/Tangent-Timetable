@@ -92,6 +92,7 @@ export default function RecurringTodoPanel() {
             {title}
           </Typography.Text>
           {!rule.enabled && <Tag>已停用</Tag>}
+          {rule.frequency === 'CUSTOM' && <Tag color="geekblue">自定义</Tag>}
           {rule.chainAfterComplete && (
             <Tooltip title="完成当期后立即生成下一期">
               <Tag color="purple">连续</Tag>

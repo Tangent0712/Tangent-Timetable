@@ -1,18 +1,15 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
-import { ConfigProvider, App as AntApp } from 'antd'
-import zhCN from 'antd/locale/zh_CN'
+import { App as AntApp } from 'antd'
 import App from './App'
 import { AppProvider } from './store/AppContext'
+import { ThemeProvider } from './theme'
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <ConfigProvider
-      locale={zhCN}
-      theme={{ token: { colorPrimary: '#2f54eb', borderRadius: 8 } }}
-    >
+    <ThemeProvider>
       <AntApp>
         <BrowserRouter>
           <AppProvider>
@@ -20,6 +17,6 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           </AppProvider>
         </BrowserRouter>
       </AntApp>
-    </ConfigProvider>
+    </ThemeProvider>
   </React.StrictMode>,
 )

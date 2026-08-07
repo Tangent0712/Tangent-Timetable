@@ -1,6 +1,7 @@
 CREATE TABLE IF NOT EXISTS api_key (
     api_key VARCHAR(64) PRIMARY KEY,
     label VARCHAR(50) NOT NULL,
+    avatar_url VARCHAR(500),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 

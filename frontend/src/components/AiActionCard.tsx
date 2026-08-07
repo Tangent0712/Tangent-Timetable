@@ -117,6 +117,11 @@ const DIFF_COLUMNS: ColumnsType<DiffRow> = [
 ]
 
 function recurringLine(r: Dict): string {
+  const offset = describeOffset(Number(r.ddlOffsetMinutes))
+  const chain = r.chainAfterComplete ? '，完成后接下一期' : ''
+  if (r.frequency === 'CUSTOM') {
+    return `自定义脚本判断触发，触发后 ${offset} 截止${chain}`
+  }
   const time = String(r.triggerTime ?? '').slice(0, 5) || '--:--'
   let when: string
   switch (r.frequency) {
@@ -132,8 +137,6 @@ function recurringLine(r: Dict): string {
     default:
       when = time
   }
-  const offset = describeOffset(Number(r.ddlOffsetMinutes))
-  const chain = r.chainAfterComplete ? '，完成后接下一期' : ''
   return `${when} 触发，触发后 ${offset} 截止${chain}`
 }
 
@@ -141,6 +144,7 @@ function recurringDiff(b: Dict, a: Dict): DiffRow[] {
   const rows: [string, string, string][] = [
     ['标题', str(b.title), str(a.title)],
     ['触发规则', b.frequency ? recurringLine(b) : '未指定', a.frequency ? recurringLine(a) : '未指定'],
+    ['脚本', scriptSummary(b.script), scriptSummary(a.script)],
   ]
   return rows.map(([field, before, after]) => ({
     key: field,
@@ -149,6 +153,12 @@ function recurringDiff(b: Dict, a: Dict): DiffRow[] {
     after,
     changed: before !== after,
   }))
+}
+
+function scriptSummary(v: unknown): string {
+  if (v === null || v === undefined || v === '') return '无'
+  const s = String(v)
+  return s.length > 40 ? s.slice(0, 40) + '…' : s
 }
 
 function renderBody(type: string, data: Dict) {
@@ -161,7 +171,10 @@ function renderBody(type: string, data: Dict) {
         {rules.map((r, i) => (
           <div key={i}>
             <Typography.Text strong>{str(r.title)}</Typography.Text>
-            <div style={{ color: '#595959', fontSize: 13 }}>{recurringLine(r)}</div>
+            <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{recurringLine(r)}</div>
+            {r.script ? (
+              <pre className="ai-script-block">{String(r.script)}</pre>
+            ) : null}
           </div>
         ))}
       </Space>
@@ -174,15 +187,20 @@ function renderBody(type: string, data: Dict) {
       <Space direction="vertical" style={{ width: '100%' }} size={12}>
         {after.map((a, i) => {
           const b = before.find((x) => x.id === a.id) ?? {}
+          const scriptChanged = Boolean(a.script) && String(a.script) !== String(b.script ?? '')
           return (
-            <Table
-              key={i}
-              size="small"
-              rowKey="key"
-              columns={DIFF_COLUMNS}
-              dataSource={recurringDiff(b, a)}
-              pagination={false}
-            />
+            <div key={i}>
+              <Table
+                size="small"
+                rowKey="key"
+                columns={DIFF_COLUMNS}
+                dataSource={recurringDiff(b, a)}
+                pagination={false}
+              />
+              {scriptChanged ? (
+                <pre className="ai-script-block">{String(a.script)}</pre>
+              ) : null}
+            </div>
           )
         })}
       </Space>
@@ -203,7 +221,7 @@ function renderBody(type: string, data: Dict) {
               <Typography.Text delete={type === 'DELETE_RECURRING'} strong>
                 {str(r.title)}
               </Typography.Text>
-              <div style={{ color: '#595959', fontSize: 13 }}>
+              <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
                 {recurringLine(r)}
                 {type === 'TOGGLE_RECURRING' &&
                   `（当前${r.enabled ? '启用' : '停用'} → ${r.enabled ? '停用' : '启用'}）`}
@@ -223,17 +241,22 @@ function renderBody(type: string, data: Dict) {
       <Space direction="vertical" style={{ width: '100%' }} size={12}>
         {after.map((a, i) => {
           const b = before.find((x) => x.id === a.id) ?? {}
+          // 只展示发生变化的字段；其余字段按课程摘要一行展示
+          const changedRows = courseDiff(b, a).filter((r) => r.changed)
           return (
             <div key={i}>
-              <Typography.Text strong>{str(b.name ?? a.name)}</Typography.Text>
-              <Table
-                size="small"
-                rowKey="key"
-                columns={DIFF_COLUMNS}
-                dataSource={courseDiff(b, a)}
-                pagination={false}
-                style={{ marginTop: 6 }}
-              />
+              <Typography.Text strong>{str(a.name ?? b.name)}</Typography.Text>
+              <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{courseLine(a)}</div>
+              {changedRows.length > 0 && (
+                <Table
+                  size="small"
+                  rowKey="key"
+                  columns={DIFF_COLUMNS}
+                  dataSource={changedRows}
+                  pagination={false}
+                  style={{ marginTop: 6 }}
+                />
+              )}
             </div>
           )
         })}
@@ -269,7 +292,7 @@ function renderBody(type: string, data: Dict) {
         {courses.map((c, i) => (
           <div key={i}>
             <Typography.Text strong>{str(c.name)}</Typography.Text>
-            <div style={{ color: '#595959', fontSize: 13 }}>
+            <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
               {courseLine(c)}
             </div>
           </div>
@@ -285,7 +308,7 @@ function renderBody(type: string, data: Dict) {
         {todos.map((t, i) => (
           <div key={i}>
             <Typography.Text strong>{str(t.title)}</Typography.Text>
-            <div style={{ color: '#595959', fontSize: 13 }}>截止 {str(t.ddl)}</div>
+            <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>截止 {str(t.ddl)}</div>
           </div>
         ))}
       </Space>
@@ -304,7 +327,7 @@ function renderBody(type: string, data: Dict) {
             <Typography.Text delete={type !== 'TOGGLE_TODO'} strong>
               {str(b.name ?? b.title)}
             </Typography.Text>
-            <div style={{ color: '#595959', fontSize: 13 }}>
+            <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
               {b.dayOfWeek ? courseLine(b) : `截止 ${str(b.ddl)}`}
             </div>
           </div>
