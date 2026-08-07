@@ -2,6 +2,7 @@ import { Button, Card, Space, Table, Tag, Tooltip, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import type { AiAction } from '../types'
 import { formatWeeks, weekDayName } from '../utils/schedule'
+import { describeOffset } from '../utils/recurring'
 
 const ACTION_LABELS: Record<string, string> = {
   CREATE_COURSE: '添加课程',
@@ -11,6 +12,10 @@ const ACTION_LABELS: Record<string, string> = {
   UPDATE_TODO: '修改待办',
   DELETE_TODO: '删除待办',
   TOGGLE_TODO: '切换待办状态',
+  CREATE_RECURRING: '添加循环任务',
+  UPDATE_RECURRING: '修改循环任务',
+  DELETE_RECURRING: '删除循环任务',
+  TOGGLE_RECURRING: '启用/停用循环任务',
 }
 
 interface Props {
@@ -57,7 +62,11 @@ export default function AiActionCard({ action, executing, onExecute, onReject }:
         <Space>
           <span>{ACTION_LABELS[action.type] ?? action.type}</span>
           <Tag color={action.scope === 'COURSE' ? 'geekblue' : 'purple'}>
-            {action.scope === 'COURSE' ? '课表' : '待办'}
+            {action.scope === 'COURSE'
+              ? '课表'
+              : action.type.includes('RECURRING')
+                ? '循环任务'
+                : '待办'}
           </Tag>
           {statusTag}
         </Space>
@@ -107,8 +116,106 @@ const DIFF_COLUMNS: ColumnsType<DiffRow> = [
   },
 ]
 
+function recurringLine(r: Dict): string {
+  const time = String(r.triggerTime ?? '').slice(0, 5) || '--:--'
+  let when: string
+  switch (r.frequency) {
+    case 'DAILY':
+      when = `每天 ${time}`
+      break
+    case 'WEEKLY':
+      when = `每${weekDayName(Number(r.dayOfWeek)).replace('周', '周')} ${time}`
+      break
+    case 'MONTHLY':
+      when = `每月 ${r.dayOfMonth} 号 ${time}`
+      break
+    default:
+      when = time
+  }
+  const offset = describeOffset(Number(r.ddlOffsetMinutes))
+  const chain = r.chainAfterComplete ? '，完成后接下一期' : ''
+  return `${when} 触发，触发后 ${offset} 截止${chain}`
+}
+
+function recurringDiff(b: Dict, a: Dict): DiffRow[] {
+  const rows: [string, string, string][] = [
+    ['标题', str(b.title), str(a.title)],
+    ['触发规则', b.frequency ? recurringLine(b) : '未指定', a.frequency ? recurringLine(a) : '未指定'],
+  ]
+  return rows.map(([field, before, after]) => ({
+    key: field,
+    field,
+    before,
+    after,
+    changed: before !== after,
+  }))
+}
+
 function renderBody(type: string, data: Dict) {
   const before = (data._before as Dict[]) ?? []
+
+  if (type === 'CREATE_RECURRING') {
+    const rules = (data.rules as Dict[]) ?? []
+    return (
+      <Space direction="vertical" style={{ width: '100%' }} size={8}>
+        {rules.map((r, i) => (
+          <div key={i}>
+            <Typography.Text strong>{str(r.title)}</Typography.Text>
+            <div style={{ color: '#595959', fontSize: 13 }}>{recurringLine(r)}</div>
+          </div>
+        ))}
+      </Space>
+    )
+  }
+
+  if (type === 'UPDATE_RECURRING') {
+    const after = (data.rules as Dict[]) ?? []
+    return (
+      <Space direction="vertical" style={{ width: '100%' }} size={12}>
+        {after.map((a, i) => {
+          const b = before.find((x) => x.id === a.id) ?? {}
+          return (
+            <Table
+              key={i}
+              size="small"
+              rowKey="key"
+              columns={DIFF_COLUMNS}
+              dataSource={recurringDiff(b, a)}
+              pagination={false}
+            />
+          )
+        })}
+      </Space>
+    )
+  }
+
+  if (type === 'DELETE_RECURRING' || type === 'TOGGLE_RECURRING') {
+    if (before.length > 0) {
+      return (
+        <Space direction="vertical" style={{ width: '100%' }} size={8}>
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            {type === 'TOGGLE_RECURRING'
+              ? '将切换以下循环任务的启用状态：'
+              : '将删除以下循环任务（已生成的待办保留）：'}
+          </Typography.Text>
+          {before.map((r, i) => (
+            <div key={i}>
+              <Typography.Text delete={type === 'DELETE_RECURRING'} strong>
+                {str(r.title)}
+              </Typography.Text>
+              <div style={{ color: '#595959', fontSize: 13 }}>
+                {recurringLine(r)}
+                {type === 'TOGGLE_RECURRING' &&
+                  `（当前${r.enabled ? '启用' : '停用'} → ${r.enabled ? '停用' : '启用'}）`}
+              </div>
+            </div>
+          ))}
+        </Space>
+      )
+    }
+    const ids = data.recurringIds as unknown[] | undefined
+    if (Array.isArray(ids)) return <span>目标 ID：{ids.join(', ')}</span>
+  }
 
   if (type === 'UPDATE_COURSE') {
     const after = (data.courses as Dict[]) ?? []

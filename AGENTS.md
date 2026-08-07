@@ -175,6 +175,7 @@ npm run build        # tsc -b && vite build → dist/
 | `ai_conversation` | id (BIGINT AUTO) | AI 对话，含 api_key + schedule_id |
 | `ai_message` | id (BIGINT AUTO) | AI 消息，含 role/content（action_* 列已废弃，保留兼容） |
 | `ai_action` | id (BIGINT AUTO) | AI 操作提案，一条消息可有多条；含 scope/status/data/fingerprint |
+| `recurring_todo` | id (BIGINT AUTO) | 循环待办规则，含 frequency/触发时刻/截止偏移 |
 
 ### MySQL 连接
 
@@ -215,6 +216,12 @@ npm run build        # tsc -b && vite build → dist/
 | PUT | `/api/todos/{id}` | 修改待办 |
 | DELETE | `/api/todos/{id}` | 删除待办 |
 | PUT | `/api/todos/{id}/toggle` | 切换待办完成状态 |
+| GET | `/api/recurring-todos` | 循环待办规则列表 |
+| POST | `/api/recurring-todos` | 新建循环规则 |
+| PUT | `/api/recurring-todos/{id}` | 修改循环规则 |
+| DELETE | `/api/recurring-todos/{id}` | 删除循环规则（已生成待办保留） |
+| PUT | `/api/recurring-todos/{id}/toggle` | 启用/停用循环规则 |
+| POST | `/api/recurring-todos/{id}/trigger` | 立即触发生成一条待办 |
 | GET | `/api/period-config` | 获取作息时间表 |
 | PUT | `/api/period-config` | 修改作息时间表 |
 | GET | `/api/ai/status` | AI 是否可用 `{enabled}` |
@@ -309,7 +316,8 @@ deepseek:
 - AI 返回 `{text, actions[]}`，**一次可返回多个提案**，每个提案独立成一条 `ai_action`
   记录、独立确认执行，前端渲染成多张卡片
 - 支持的 action.type：`CREATE_COURSE` / `UPDATE_COURSE` / `DELETE_COURSE` /
-  `CREATE_TODO` / `UPDATE_TODO` / `DELETE_TODO` / `TOGGLE_TODO`
+  `CREATE_TODO` / `UPDATE_TODO` / `DELETE_TODO` / `TOGGLE_TODO` /
+  `CREATE_RECURRING` / `UPDATE_RECURRING` / `DELETE_RECURRING` / `TOGGLE_RECURRING`
 - 超出这 7 种能力（查天气、发邮件、改作息表等）或指令模糊时，Prompt 要求 AI
   直接简短说明做不到 / 追问，`actions` 返回 `[]`，不做长时间推理
 - `max_tokens=16384` + `reasoning_effort=low` 限制推理预算，避免思考过长导致正文为空；
@@ -331,6 +339,17 @@ deepseek:
 难点在于 JSON Mode 下流式拿到的是不完整 JSON，无法直接解析。
 `JsonTextStreamExtractor` 用小状态机逐字扫描，只提取 `text` 字段的值，
 因此要求 Prompt 把 `text` 放在 JSON 最前面。`text` 闭合引号出现即触发 `planning`。
+
+### 历史上下文注入（易踩坑）
+
+assistant 历史必须还原成「模型当初本该输出的合法 JSON」
+（`{"text":..., "actions":[...]}`），提案的执行状态另发一条 `user` 角色的
+`[系统反馈]` 消息。
+
+> 曾经把提案拼成 `[提案: TYPE 状态: X 数据: {...}]` 塞进 assistant 消息，
+> 结果模型模仿该格式、不再输出 JSON，导致解析失败。
+> `parseJson` 现在也有兜底：先截取最外层 `{...}`，仍失败则降级为纯文本回复，
+> 不中断对话。
 
 ### 提案失效机制（防数据混乱）
 
@@ -368,7 +387,34 @@ deepseek:
 
 ---
 
-## 10. 注意事项
+## 10. 循环待办
+
+规则存在 `recurring_todo`，到点由后端自动生成真实 `todo` 记录
+（`todo.recurring_id` 指回规则）。
+
+| 字段 | 说明 |
+|------|------|
+| `frequency` | `DAILY` / `WEEKLY` / `MONTHLY` |
+| `day_of_week` | WEEKLY 时必填，1=周一 … 7=周日 |
+| `day_of_month` | MONTHLY 时必填，1-31；当月无该日则顺延到最后一天（31 号遇 2 月 → 28/29） |
+| `trigger_time` | 每期触发时刻 |
+| `ddl_offset_minutes` | 截止 = 触发时刻 + 该分钟数（1 天=1440，1 周=10080） |
+| `chain_after_complete` | true 时用户完成当期后立即生成下一期；false 只按触发时刻生成 |
+| `next_trigger_at` | 下次触发时间，生成后自动滚动 |
+
+例：每周五 12:00 触发「刷本周网课」、本周日 12:00 截止
+→ `WEEKLY` + `dayOfWeek=5` + `12:00` + `ddlOffsetMinutes=2880`
+
+- `RecurringScheduleCalculator` 负责触发时间推算与校验
+- `RecurringTodoScheduler` 每 60s 扫描一次；启动时补扫一次，
+  补齐停机期间错过的触发（单规则上限 `MAX_CATCH_UP=5` 期，避免刷屏）
+- 删除规则时**保留已生成的待办**，仅把 `recurring_id` 置空
+  （MyBatis-Plus 的 `updateById` 忽略 null，这里用 `lambdaUpdate().set(...)` 显式置空）
+- 循环规则归入 `SCOPE_TODO` 作用域，其内容参与待办域指纹计算
+
+---
+
+## 11. 注意事项
 
 1. **多用户设计**: 每个 API Key 独立数据空间，Key 由管理员在数据库 `api_key` 表预设
 2. **Course.weeks**: MySQL JSON 类型，MyBatis-Plus 用 `JacksonTypeHandler` 映射为 `List<Integer>`

@@ -16,8 +16,8 @@ import {
   onUnauthorized,
   setApiKey as persistApiKey,
 } from '../api/client'
-import { authApi, courseApi, periodApi, scheduleApi, todoApi } from '../api'
-import type { Course, PeriodConfig, Schedule, Todo } from '../types'
+import { authApi, courseApi, periodApi, recurringApi, scheduleApi, todoApi } from '../api'
+import type { Course, PeriodConfig, RecurringTodo, Schedule, Todo } from '../types'
 
 const ACTIVE_SCHEDULE_STORAGE = 'timetable.activeScheduleId'
 const SYNC_INTERVAL_MS = 30_000
@@ -31,6 +31,7 @@ interface AppState {
   activeSchedule: Schedule | null
   courses: Course[]
   todos: Todo[]
+  recurringTodos: RecurringTodo[]
   periods: PeriodConfig[]
   loading: boolean
   login: (key: string) => Promise<void>
@@ -39,6 +40,7 @@ interface AppState {
   refreshSchedules: () => Promise<Schedule[]>
   refreshCourses: () => Promise<void>
   refreshTodos: () => Promise<void>
+  refreshRecurring: () => Promise<void>
   refreshPeriods: () => Promise<void>
   refreshAll: () => Promise<void>
 }
@@ -56,6 +58,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   })
   const [courses, setCourses] = useState<Course[]>([])
   const [todos, setTodos] = useState<Todo[]>([])
+  const [recurringTodos, setRecurringTodos] = useState<RecurringTodo[]>([])
   const [periods, setPeriods] = useState<PeriodConfig[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -75,6 +78,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSchedules([])
     setCourses([])
     setTodos([])
+    setRecurringTodos([])
     setPeriods([])
     setActiveScheduleId(null)
   }, [setActiveScheduleId])
@@ -111,6 +115,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setTodos(await todoApi.list())
   }, [])
 
+  const refreshRecurring = useCallback(async () => {
+    setRecurringTodos(await recurringApi.list())
+  }, [])
+
   const refreshPeriods = useCallback(async () => {
     setPeriods(await periodApi.list())
   }, [])
@@ -119,11 +127,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setLoading(true)
     try {
       await refreshSchedules()
-      await Promise.all([refreshCourses(), refreshTodos(), refreshPeriods()])
+      await Promise.all([
+        refreshCourses(),
+        refreshTodos(),
+        refreshRecurring(),
+        refreshPeriods(),
+      ])
     } finally {
       setLoading(false)
     }
-  }, [refreshCourses, refreshPeriods, refreshSchedules, refreshTodos])
+  }, [refreshCourses, refreshPeriods, refreshRecurring, refreshSchedules, refreshTodos])
 
   const login = useCallback(
     async (key: string) => {
@@ -169,12 +182,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!authed) return
     const timer = window.setInterval(() => {
-      Promise.all([refreshCourses(), refreshTodos()]).catch(() => {
+      Promise.all([refreshCourses(), refreshTodos(), refreshRecurring()]).catch(() => {
         /* 静默失败，下次轮询重试 */
       })
     }, SYNC_INTERVAL_MS)
     return () => window.clearInterval(timer)
-  }, [authed, refreshCourses, refreshTodos])
+  }, [authed, refreshCourses, refreshTodos, refreshRecurring])
 
   const activeSchedule = useMemo(
     () => schedules.find((s) => s.id === activeScheduleId) ?? null,
@@ -190,6 +203,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     activeSchedule,
     courses,
     todos,
+    recurringTodos,
     periods,
     loading,
     login,
@@ -198,6 +212,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     refreshSchedules,
     refreshCourses,
     refreshTodos,
+    refreshRecurring,
     refreshPeriods,
     refreshAll,
   }

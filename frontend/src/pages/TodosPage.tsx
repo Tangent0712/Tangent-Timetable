@@ -13,11 +13,19 @@ import {
   Segmented,
   Space,
   Statistic,
+  Tabs,
   Tag,
+  Tooltip,
   Typography,
   message,
 } from 'antd'
-import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons'
+import {
+  DeleteOutlined,
+  EditOutlined,
+  PlusOutlined,
+  RetweetOutlined,
+} from '@ant-design/icons'
+import RecurringTodoPanel from '../components/RecurringTodoPanel'
 import type { Dayjs } from 'dayjs'
 import { todoApi } from '../api'
 import { useApp } from '../store/AppContext'
@@ -27,7 +35,7 @@ import { dayjs, formatCountdown } from '../utils/schedule'
 type Filter = 'active' | 'completed' | 'all'
 
 export default function TodosPage() {
-  const { todos, refreshTodos } = useApp()
+  const { todos, recurringTodos, refreshTodos } = useApp()
   const [filter, setFilter] = useState<Filter>('active')
   const [tick, setTick] = useState(0)
   const [modal, setModal] = useState<{ open: boolean; todo: Todo | null }>({
@@ -50,6 +58,10 @@ export default function TodosPage() {
     if (filter === 'completed') return list.filter((t) => t.completed)
     return list
   }, [todos, filter])
+
+  // 循环待办的来源规则标题（规则被删除时返回 null）
+  const recurringSource = (id: number) =>
+    recurringTodos.find((r) => r.id === id)?.title ?? null
 
   const stats = useMemo(() => {
     const active = todos.filter((t) => !t.completed)
@@ -113,7 +125,7 @@ export default function TodosPage() {
     }
   }
 
-  return (
+  const todoTab = (
     <>
       <div className="page-header">
         <Space size={24} wrap>
@@ -189,6 +201,19 @@ export default function TodosPage() {
                       >
                         {todo.title}
                       </Typography.Text>
+                      {todo.recurringId !== null && (
+                        <Tooltip
+                          title={
+                            recurringSource(todo.recurringId)
+                              ? `来自循环任务：${recurringSource(todo.recurringId)}`
+                              : '来自循环任务（规则已删除）'
+                          }
+                        >
+                          <Tag icon={<RetweetOutlined />} color="blue">
+                            循环
+                          </Tag>
+                        </Tooltip>
+                      )}
                       {todo.completed ? (
                         <Tag color="green">已完成</Tag>
                       ) : (
@@ -205,6 +230,21 @@ export default function TodosPage() {
           }}
         />
       </Card>
+    </>
+  )
+
+  return (
+    <>
+      <Tabs
+        items={[
+          { key: 'todos', label: '待办事项', children: todoTab },
+          {
+            key: 'recurring',
+            label: `循环任务${recurringTodos.length ? ` (${recurringTodos.length})` : ''}`,
+            children: <RecurringTodoPanel />,
+          },
+        ]}
+      />
 
       <Modal
         open={modal.open}

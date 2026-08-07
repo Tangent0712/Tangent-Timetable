@@ -10,12 +10,14 @@ import com.timetable.dto.AiConversationRequest;
 import com.timetable.dto.AiMessageRequest;
 import com.timetable.dto.AiMessageResponse;
 import com.timetable.dto.CourseRequest;
+import com.timetable.dto.RecurringTodoRequest;
 import com.timetable.dto.TodoRequest;
 import com.timetable.entity.AiAction;
 import com.timetable.entity.AiConversation;
 import com.timetable.entity.AiMessage;
 import com.timetable.entity.Course;
 import com.timetable.entity.PeriodConfig;
+import com.timetable.entity.RecurringTodo;
 import com.timetable.entity.Schedule;
 import com.timetable.entity.Todo;
 import com.timetable.exception.BusinessException;
@@ -26,6 +28,7 @@ import com.timetable.service.AiService;
 import com.timetable.service.CourseService;
 import com.timetable.service.DeepSeekClient;
 import com.timetable.service.PeriodConfigService;
+import com.timetable.service.RecurringTodoService;
 import com.timetable.service.ScheduleService;
 import com.timetable.service.TodoService;
 import org.slf4j.Logger;
@@ -38,6 +41,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -67,6 +71,7 @@ public class AiServiceImpl implements AiService {
     private final ScheduleService scheduleService;
     private final CourseService courseService;
     private final TodoService todoService;
+    private final RecurringTodoService recurringTodoService;
     private final PeriodConfigService periodConfigService;
     private final ObjectMapper objectMapper;
 
@@ -77,6 +82,7 @@ public class AiServiceImpl implements AiService {
                          ScheduleService scheduleService,
                          CourseService courseService,
                          TodoService todoService,
+                         RecurringTodoService recurringTodoService,
                          PeriodConfigService periodConfigService,
                          ObjectMapper objectMapper) {
         this.conversationMapper = conversationMapper;
@@ -86,6 +92,7 @@ public class AiServiceImpl implements AiService {
         this.scheduleService = scheduleService;
         this.courseService = courseService;
         this.todoService = todoService;
+        this.recurringTodoService = recurringTodoService;
         this.periodConfigService = periodConfigService;
         this.objectMapper = objectMapper;
     }
@@ -180,7 +187,10 @@ public class AiServiceImpl implements AiService {
 
     // ==================== 作用域与指纹 ====================
 
-    /** 按 action 类型判定它属于课表域还是待办域 */
+    /**
+     * 按 action 类型判定作用域。
+     * COURSE 类归课表域；TODO 与 RECURRING 类同归待办域（循环规则是待办的来源，语义相连）。
+     */
     private String scopeOf(String actionType) {
         return actionType.contains("COURSE") ? SCOPE_COURSE : SCOPE_TODO;
     }
@@ -205,6 +215,14 @@ public class AiServiceImpl implements AiService {
             for (Todo t : todoService.list(apiKey)) {
                 sb.append(t.getId()).append(':').append(t.getTitle()).append(':')
                         .append(t.getDdl()).append(':').append(t.getCompleted()).append(';');
+            }
+            sb.append("|R|");
+            for (RecurringTodo r : recurringTodoService.list(apiKey)) {
+                sb.append(r.getId()).append(':').append(r.getTitle()).append(':')
+                        .append(r.getFrequency()).append(':').append(r.getDayOfWeek()).append(':')
+                        .append(r.getDayOfMonth()).append(':').append(r.getTriggerTime()).append(':')
+                        .append(r.getDdlOffsetMinutes()).append(':').append(r.getEnabled()).append(':')
+                        .append(r.getChainAfterComplete()).append(';');
             }
         }
         return sha256(sb.toString());
@@ -311,6 +329,7 @@ public class AiServiceImpl implements AiService {
             courses = courseService.listByScheduleId(scheduleId, apiKey);
         }
         List<Todo> todos = todoService.list(apiKey);
+        List<RecurringTodo> recurringTodos = recurringTodoService.list(apiKey);
         List<PeriodConfig> periods = periodConfigService.list();
 
         AiMessage userMessage = new AiMessage();
@@ -321,27 +340,52 @@ public class AiServiceImpl implements AiService {
 
         List<DeepSeekClient.Message> payload = new ArrayList<>();
         payload.add(new DeepSeekClient.Message("system",
-                AiPromptBuilder.buildChatSystemPrompt(schedule, courses, todos, periods, LocalDate.now())));
+                AiPromptBuilder.buildChatSystemPrompt(schedule, courses, todos, recurringTodos, periods, LocalDate.now())));
 
         List<AiMessage> history = loadMessages(conversationId);
         int from = Math.max(0, history.size() - HISTORY_LIMIT);
         for (int i = from; i < history.size(); i++) {
             AiMessage m = history.get(i);
             String content = m.getContent() == null ? "" : m.getContent();
-            if ("assistant".equals(m.getRole())) {
-                List<AiAction> acts = loadActions(m.getId());
-                if (!acts.isEmpty()) {
-                    StringBuilder sb = new StringBuilder(content);
-                    for (AiAction a : acts) {
-                        sb.append("\n[提案: ").append(a.getActionType())
-                                .append(" 状态: ").append(a.getActionStatus())
-                                .append(" 数据: ").append(a.getActionData() == null ? "{}" : a.getActionData())
-                                .append("]");
-                    }
-                    content = sb.toString();
+
+            if (!"assistant".equals(m.getRole())) {
+                payload.add(new DeepSeekClient.Message(m.getRole(), content));
+                continue;
+            }
+
+            // assistant 历史必须还原成「模型当初本该输出的合法 JSON」。
+            // 若在这里拼入自定义标注（如 [提案: ...]），模型会模仿该格式而不再输出 JSON。
+            List<AiAction> acts = loadActions(m.getId());
+            ObjectNode replay = objectMapper.createObjectNode();
+            replay.put("text", content);
+            ArrayNode actionsNode = replay.putArray("actions");
+            for (AiAction a : acts) {
+                ObjectNode an = actionsNode.addObject();
+                an.put("type", a.getActionType());
+                try {
+                    an.set("data", objectMapper.readTree(
+                            a.getActionData() == null ? "{}" : a.getActionData()));
+                } catch (Exception e) {
+                    an.set("data", objectMapper.createObjectNode());
                 }
             }
-            payload.add(new DeepSeekClient.Message(m.getRole(), content));
+            try {
+                payload.add(new DeepSeekClient.Message("assistant",
+                        objectMapper.writeValueAsString(replay)));
+            } catch (Exception e) {
+                payload.add(new DeepSeekClient.Message("assistant", content));
+            }
+
+            // 执行结果作为独立的 user 反馈告知，避免污染 assistant 的输出格式
+            if (!acts.isEmpty()) {
+                StringBuilder fb = new StringBuilder("[系统反馈] 上述提案的处理结果：");
+                for (AiAction a : acts) {
+                    fb.append("\n- ").append(a.getActionType())
+                            .append(" → ").append(statusText(a.getActionStatus()));
+                }
+                fb.append("\n（这是系统信息，不是用户发言。请继续按 JSON 格式回复。）");
+                payload.add(new DeepSeekClient.Message("user", fb.toString()));
+            }
         }
 
         String raw;
@@ -409,7 +453,7 @@ public class AiServiceImpl implements AiService {
             if (data.isMissingNode()) {
                 data = objectMapper.createObjectNode();
             }
-            enrichBeforeSnapshot(type, data, courses, todos);
+            enrichBeforeSnapshot(type, data, courses, todos, recurringTodos);
 
             String scope = scopeOf(type);
             AiAction action = new AiAction();
@@ -440,6 +484,18 @@ public class AiServiceImpl implements AiService {
         return toResponse(assistantMessage);
     }
 
+    private String statusText(String status) {
+        if (status == null) {
+            return "待确认";
+        }
+        return switch (status) {
+            case STATUS_EXECUTED -> "用户已确认执行，数据已生效";
+            case STATUS_REJECTED -> "用户已取消，未执行";
+            case STATUS_STALE -> "已失效（数据变化或有更新提案），未执行";
+            default -> "待用户确认";
+        };
+    }
+
     private JsonNode parseJson(String raw) {
         String text = raw == null ? "" : raw.trim();
         if (text.startsWith("```")) {
@@ -451,15 +507,31 @@ public class AiServiceImpl implements AiService {
         }
         try {
             return objectMapper.readTree(text);
-        } catch (Exception e) {
-            log.error("AI returned invalid JSON: {}", raw);
-            throw new BusinessException(502, "AI 返回内容不是合法 JSON");
+        } catch (Exception ignored) {
+            // 兜底：尝试截取最外层花括号内容（模型偶尔会在 JSON 前后带解释文字）
+            int first = text.indexOf('{');
+            int last = text.lastIndexOf('}');
+            if (first >= 0 && last > first) {
+                try {
+                    return objectMapper.readTree(text.substring(first, last + 1));
+                } catch (Exception ignored2) {
+                    // 继续走降级
+                }
+            }
+            // 仍失败则降级为纯文本回复，不抛错中断对话
+            log.warn("AI returned non-JSON content, degrading to plain text: {}", text);
+            ObjectNode fallback = objectMapper.createObjectNode();
+            fallback.put("text", text.isBlank()
+                    ? "抱歉，我没能正确组织回复，请再说一次。" : text);
+            fallback.putArray("actions");
+            return fallback;
         }
     }
 
     // ==================== 修改前快照 ====================
 
-    private void enrichBeforeSnapshot(String type, JsonNode data, List<Course> courses, List<Todo> todos) {
+    private void enrichBeforeSnapshot(String type, JsonNode data, List<Course> courses,
+                                      List<Todo> todos, List<RecurringTodo> rules) {
         if (!(data instanceof ObjectNode target)) {
             return;
         }
@@ -496,6 +568,21 @@ public class AiServiceImpl implements AiService {
                             .ifPresent(t -> before.add(todoSnapshot(t)));
                 }
             }
+            case "UPDATE_RECURRING" -> {
+                for (JsonNode node : data.path("rules")) {
+                    if (!node.hasNonNull("id")) continue;
+                    long id = node.get("id").asLong();
+                    rules.stream().filter(r -> r.getId() == id).findFirst()
+                            .ifPresent(r -> before.add(recurringSnapshot(r)));
+                }
+            }
+            case "DELETE_RECURRING", "TOGGLE_RECURRING" -> {
+                for (JsonNode node : data.path("recurringIds")) {
+                    long id = node.asLong();
+                    rules.stream().filter(r -> r.getId() == id).findFirst()
+                            .ifPresent(r -> before.add(recurringSnapshot(r)));
+                }
+            }
             default -> {
                 return;
             }
@@ -519,6 +606,20 @@ public class AiServiceImpl implements AiService {
         if (c.getWeeks() != null) {
             c.getWeeks().forEach(weeks::add);
         }
+        return node;
+    }
+
+    private ObjectNode recurringSnapshot(RecurringTodo r) {
+        ObjectNode node = objectMapper.createObjectNode();
+        node.put("id", r.getId());
+        node.put("title", r.getTitle());
+        node.put("frequency", r.getFrequency());
+        node.put("dayOfWeek", r.getDayOfWeek());
+        node.put("dayOfMonth", r.getDayOfMonth());
+        node.put("triggerTime", r.getTriggerTime() == null ? null : r.getTriggerTime().toString());
+        node.put("ddlOffsetMinutes", r.getDdlOffsetMinutes());
+        node.put("enabled", r.getEnabled());
+        node.put("chainAfterComplete", r.getChainAfterComplete());
         return node;
     }
 
@@ -688,6 +789,29 @@ public class AiServiceImpl implements AiService {
                     todoService.toggleComplete(node.asLong(), apiKey);
                 }
             }
+            case "CREATE_RECURRING" -> {
+                for (JsonNode node : arrayOf(data, "rules")) {
+                    recurringTodoService.create(toRecurringRequest(node), apiKey);
+                }
+            }
+            case "UPDATE_RECURRING" -> {
+                for (JsonNode node : arrayOf(data, "rules")) {
+                    if (!node.hasNonNull("id")) {
+                        throw new BusinessException(400, "修改循环任务缺少 id");
+                    }
+                    recurringTodoService.update(node.get("id").asLong(), toRecurringRequest(node), apiKey);
+                }
+            }
+            case "DELETE_RECURRING" -> {
+                for (JsonNode node : arrayOf(data, "recurringIds")) {
+                    recurringTodoService.delete(node.asLong(), apiKey);
+                }
+            }
+            case "TOGGLE_RECURRING" -> {
+                for (JsonNode node : arrayOf(data, "recurringIds")) {
+                    recurringTodoService.toggleEnabled(node.asLong(), apiKey);
+                }
+            }
             default -> throw new BusinessException(400, "不支持的操作类型: " + type);
         }
     }
@@ -735,6 +859,47 @@ public class AiServiceImpl implements AiService {
         }
         req.setDdl(parseDateTime(ddl));
         return req;
+    }
+
+    private RecurringTodoRequest toRecurringRequest(JsonNode node) {
+        RecurringTodoRequest req = new RecurringTodoRequest();
+        req.setTitle(textOrNull(node, "title"));
+        String freq = textOrNull(node, "frequency");
+        if (req.getTitle() == null || freq == null) {
+            throw new BusinessException(400, "循环任务信息不完整，无法执行");
+        }
+        req.setFrequency(freq.toUpperCase());
+        req.setDayOfWeek(node.hasNonNull("dayOfWeek") ? node.get("dayOfWeek").asInt() : null);
+        req.setDayOfMonth(node.hasNonNull("dayOfMonth") ? node.get("dayOfMonth").asInt() : null);
+
+        String time = textOrNull(node, "triggerTime");
+        if (time == null) {
+            throw new BusinessException(400, "循环任务缺少触发时间");
+        }
+        req.setTriggerTime(parseTime(time));
+
+        if (!node.hasNonNull("ddlOffsetMinutes")) {
+            throw new BusinessException(400, "循环任务缺少截止偏移时间");
+        }
+        req.setDdlOffsetMinutes(node.get("ddlOffsetMinutes").asInt());
+        req.setChainAfterComplete(node.hasNonNull("chainAfterComplete")
+                && node.get("chainAfterComplete").asBoolean());
+        if (node.hasNonNull("enabled")) {
+            req.setEnabled(node.get("enabled").asBoolean());
+        }
+        return req;
+    }
+
+    private LocalTime parseTime(String value) {
+        String v = value.trim();
+        for (String p : new String[]{"HH:mm:ss", "HH:mm", "H:mm"}) {
+            try {
+                return LocalTime.parse(v, DateTimeFormatter.ofPattern(p));
+            } catch (Exception ignored) {
+                // 尝试下一种格式
+            }
+        }
+        throw new BusinessException(400, "无法解析触发时间: " + value);
     }
 
     private LocalDateTime parseDateTime(String value) {

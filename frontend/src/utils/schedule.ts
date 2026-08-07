@@ -1,8 +1,10 @@
 import dayjs, { type Dayjs } from 'dayjs'
 import isoWeek from 'dayjs/plugin/isoWeek'
+import relativeTime from 'dayjs/plugin/relativeTime'
 import 'dayjs/locale/zh-cn'
 
 dayjs.extend(isoWeek)
+dayjs.extend(relativeTime)
 dayjs.locale('zh-cn')
 
 export const WEEK_DAY_NAMES = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']

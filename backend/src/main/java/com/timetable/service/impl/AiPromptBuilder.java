@@ -2,6 +2,7 @@ package com.timetable.service.impl;
 
 import com.timetable.entity.Course;
 import com.timetable.entity.PeriodConfig;
+import com.timetable.entity.RecurringTodo;
 import com.timetable.entity.Schedule;
 import com.timetable.entity.Todo;
 
@@ -40,6 +41,7 @@ public final class AiPromptBuilder {
     public static String buildChatSystemPrompt(Schedule schedule,
                                                List<Course> courses,
                                                List<Todo> todos,
+                                               List<RecurringTodo> recurringTodos,
                                                List<PeriodConfig> periods,
                                                LocalDate today) {
         StringBuilder sb = new StringBuilder();
@@ -62,7 +64,26 @@ public final class AiPromptBuilder {
                 .append("- CREATE_TODO: {\"todos\":[{\"title\":\"标题\",\"ddl\":\"yyyy-MM-dd HH:mm\"}]}\n")
                 .append("- UPDATE_TODO: {\"todos\":[{\"id\":待办id,\"title\":\"标题\",\"ddl\":\"yyyy-MM-dd HH:mm\"}]}\n")
                 .append("- DELETE_TODO: {\"todoIds\":[待办id数组]}\n")
-                .append("- TOGGLE_TODO: {\"todoIds\":[待办id数组]}\n\n");
+                .append("- TOGGLE_TODO: {\"todoIds\":[待办id数组]}\n")
+                .append("- CREATE_RECURRING: {\"rules\":[{\"title\":\"标题\",\"frequency\":\"DAILY|WEEKLY|MONTHLY\",")
+                .append("\"dayOfWeek\":1-7（WEEKLY 必填）,\"dayOfMonth\":1-31（MONTHLY 必填）,")
+                .append("\"triggerTime\":\"HH:mm\",\"ddlOffsetMinutes\":从触发到截止的分钟数,")
+                .append("\"chainAfterComplete\":true/false}]}\n")
+                .append("- UPDATE_RECURRING: {\"rules\":[{\"id\":规则id, 其余字段同上（需携带完整字段）}]}\n")
+                .append("- DELETE_RECURRING: {\"recurringIds\":[规则id数组]}\n")
+                .append("- TOGGLE_RECURRING: {\"recurringIds\":[规则id数组]}（启用/停用切换）\n\n");
+
+        sb.append("## 循环待办说明\n")
+                .append("循环待办是一条「规则」，到达触发时间时系统自动生成一条真实待办。\n")
+                .append("- 例：「每周五12点提醒我刷本周网课，本周日12点截止」→ CREATE_RECURRING，")
+                .append("frequency=WEEKLY, dayOfWeek=5, triggerTime=\"12:00\", ddlOffsetMinutes=2880（周五12点到周日12点=2天）\n")
+                .append("- ddlOffsetMinutes 必须自己算清楚：1小时=60，1天=1440，1周=10080\n")
+                .append("- chainAfterComplete=true 表示「用户完成当期后立即生成下一期」，")
+                .append("默认 false（只按触发时间生成）。用户明确说「做完就接下一个」时才设 true\n")
+                .append("- 用户说「取消/停掉每周的某个提醒」时，优先用 TOGGLE_RECURRING 停用而不是 DELETE_RECURRING 删除，")
+                .append("除非用户明确说「删除」\n")
+                .append("- 区分清楚：「下周五交作业」是一次性待办（CREATE_TODO）；")
+                .append("「每周五提醒我」才是循环规则（CREATE_RECURRING）\n\n");
 
         sb.append("## 诚实原则（非常重要）\n")
                 .append("- 你只能做上面列出的 7 种操作。用户要求超出这个范围时（例如查天气、")
@@ -168,7 +189,33 @@ public final class AiPromptBuilder {
                 sb.append("id=").append(t.getId())
                         .append(" 标题=").append(t.getTitle())
                         .append(" 截止=").append(t.getDdl())
-                        .append(" 已完成=").append(Boolean.TRUE.equals(t.getCompleted()) ? "是" : "否")
+                        .append(" 已完成=").append(Boolean.TRUE.equals(t.getCompleted()) ? "是" : "否");
+                if (t.getRecurringId() != null) {
+                    sb.append(" 来源=循环规则").append(t.getRecurringId());
+                }
+                sb.append("\n");
+            }
+        }
+
+        sb.append("\n### 已有循环待办规则\n");
+        if (recurringTodos == null || recurringTodos.isEmpty()) {
+            sb.append("（无）\n");
+        } else {
+            for (RecurringTodo r : recurringTodos) {
+                sb.append("id=").append(r.getId())
+                        .append(" 标题=").append(r.getTitle())
+                        .append(" 频率=").append(r.getFrequency());
+                if (r.getDayOfWeek() != null) {
+                    sb.append("(").append(weekDayName(r.getDayOfWeek())).append(")");
+                }
+                if (r.getDayOfMonth() != null) {
+                    sb.append("(每月").append(r.getDayOfMonth()).append("日)");
+                }
+                sb.append(" 触发时刻=").append(r.getTriggerTime())
+                        .append(" 截止偏移=").append(r.getDdlOffsetMinutes()).append("分钟")
+                        .append(" 状态=").append(Boolean.TRUE.equals(r.getEnabled()) ? "启用" : "已停用")
+                        .append(" 完成后接下一期=").append(Boolean.TRUE.equals(r.getChainAfterComplete()) ? "是" : "否")
+                        .append(" 下次触发=").append(r.getNextTriggerAt())
                         .append("\n");
             }
         }

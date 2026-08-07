@@ -45,12 +45,14 @@ CREATE TABLE IF NOT EXISTS todo (
     title VARCHAR(500) NOT NULL,
     ddl DATETIME NOT NULL,
     completed BOOLEAN DEFAULT FALSE,
+    recurring_id BIGINT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (api_key) REFERENCES api_key(api_key) ON DELETE CASCADE,
     INDEX idx_api_key (api_key),
     INDEX idx_ddl (ddl),
-    INDEX idx_completed (completed)
+    INDEX idx_completed (completed),
+    INDEX idx_todo_recurring (recurring_id)
 );
 
 CREATE TABLE IF NOT EXISTS ai_conversation (
@@ -92,4 +94,24 @@ CREATE TABLE IF NOT EXISTS ai_action (
     FOREIGN KEY (message_id) REFERENCES ai_message(id) ON DELETE CASCADE,
     INDEX idx_ai_action_msg (message_id),
     INDEX idx_ai_action_pending (api_key, scope, action_status)
+);
+
+CREATE TABLE IF NOT EXISTS recurring_todo (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    api_key VARCHAR(64) NOT NULL,
+    title VARCHAR(500) NOT NULL,
+    frequency VARCHAR(16) NOT NULL,
+    day_of_week TINYINT,
+    day_of_month TINYINT,
+    trigger_time TIME NOT NULL,
+    ddl_offset_minutes INT NOT NULL,
+    enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    chain_after_complete BOOLEAN NOT NULL DEFAULT FALSE,
+    last_triggered_at DATETIME,
+    next_trigger_at DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (api_key) REFERENCES api_key(api_key) ON DELETE CASCADE,
+    INDEX idx_recurring_api_key (api_key),
+    INDEX idx_recurring_next (enabled, next_trigger_at)
 );

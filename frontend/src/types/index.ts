@@ -40,9 +40,32 @@ export interface Todo {
   title: string
   ddl: string
   completed: boolean
+  /** 非空表示由循环规则自动生成 */
+  recurringId: number | null
   createdAt?: string
   updatedAt?: string
 }
+
+export type RecurringFrequency = 'DAILY' | 'WEEKLY' | 'MONTHLY'
+
+export interface RecurringTodo {
+  id: number
+  title: string
+  frequency: RecurringFrequency
+  dayOfWeek: number | null
+  dayOfMonth: number | null
+  triggerTime: string
+  ddlOffsetMinutes: number
+  enabled: boolean
+  chainAfterComplete: boolean
+  lastTriggeredAt: string | null
+  nextTriggerAt: string | null
+}
+
+export type RecurringTodoPayload = Omit<
+  RecurringTodo,
+  'id' | 'lastTriggeredAt' | 'nextTriggerAt'
+>
 
 export type PeriodCategory = 'MORNING' | 'AFTERNOON' | 'EVENING'
 
@@ -66,6 +89,10 @@ export type AiActionType =
   | 'UPDATE_TODO'
   | 'DELETE_TODO'
   | 'TOGGLE_TODO'
+  | 'CREATE_RECURRING'
+  | 'UPDATE_RECURRING'
+  | 'DELETE_RECURRING'
+  | 'TOGGLE_RECURRING'
 
 export type AiActionStatus = 'PENDING' | 'EXECUTED' | 'REJECTED' | 'STALE'
 

@@ -14,6 +14,7 @@ public class Todo {
     private String title;
     private LocalDateTime ddl;
     private Boolean completed;
+    private Long recurringId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -27,6 +28,8 @@ public class Todo {
     public void setDdl(LocalDateTime ddl) { this.ddl = ddl; }
     public Boolean getCompleted() { return completed; }
     public void setCompleted(Boolean completed) { this.completed = completed; }
+    public Long getRecurringId() { return recurringId; }
+    public void setRecurringId(Long recurringId) { this.recurringId = recurringId; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }

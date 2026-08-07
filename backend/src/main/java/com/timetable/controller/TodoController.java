@@ -5,6 +5,7 @@ import com.timetable.dto.TodoRequest;
 import com.timetable.entity.Todo;
 import com.timetable.interceptor.RequestContext;
 import com.timetable.service.AiService;
+import com.timetable.service.RecurringTodoService;
 import com.timetable.service.impl.AiServiceImpl;
 import com.timetable.service.TodoService;
 import jakarta.validation.Valid;
@@ -18,10 +19,13 @@ public class TodoController {
 
     private final TodoService todoService;
     private final AiService aiService;
+    private final RecurringTodoService recurringTodoService;
 
-    public TodoController(TodoService todoService, AiService aiService) {
+    public TodoController(TodoService todoService, AiService aiService,
+                          RecurringTodoService recurringTodoService) {
         this.todoService = todoService;
         this.aiService = aiService;
+        this.recurringTodoService = recurringTodoService;
     }
 
     @GetMapping
@@ -57,6 +61,10 @@ public class TodoController {
     public ApiResponse<Todo> toggleComplete(@PathVariable Long id) {
         String apiKey = RequestContext.getApiKey();
         Todo todo = todoService.toggleComplete(id, apiKey);
+        // 循环生成的待办被标记完成时，若规则开启了「完成后接下一期」则立即排下一期
+        if (Boolean.TRUE.equals(todo.getCompleted()) && todo.getRecurringId() != null) {
+            recurringTodoService.onTodoCompleted(todo.getRecurringId(), apiKey);
+        }
         aiService.invalidateProposalsOnDataChange(apiKey, AiServiceImpl.SCOPE_TODO);
         return ApiResponse.success(todo);
     }

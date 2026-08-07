@@ -8,6 +8,8 @@ import type {
   CoursePayload,
   ParseHtmlResult,
   PeriodConfig,
+  RecurringTodo,
+  RecurringTodoPayload,
   Schedule,
   ScheduleDetail,
   Todo,
@@ -51,6 +53,20 @@ export const todoApi = {
     request<Todo>(`/todos/${id}`, { method: 'PUT', body }),
   remove: (id: number) => request<null>(`/todos/${id}`, { method: 'DELETE' }),
   toggle: (id: number) => request<Todo>(`/todos/${id}/toggle`, { method: 'PUT' }),
+}
+
+export const recurringApi = {
+  list: () => request<RecurringTodo[]>('/recurring-todos'),
+  create: (body: RecurringTodoPayload) =>
+    request<RecurringTodo>('/recurring-todos', { method: 'POST', body }),
+  update: (id: number, body: RecurringTodoPayload) =>
+    request<RecurringTodo>(`/recurring-todos/${id}`, { method: 'PUT', body }),
+  remove: (id: number) =>
+    request<null>(`/recurring-todos/${id}`, { method: 'DELETE' }),
+  toggle: (id: number) =>
+    request<RecurringTodo>(`/recurring-todos/${id}/toggle`, { method: 'PUT' }),
+  triggerNow: (id: number) =>
+    request<RecurringTodo>(`/recurring-todos/${id}/trigger`, { method: 'POST' }),
 }
 
 export const periodApi = {

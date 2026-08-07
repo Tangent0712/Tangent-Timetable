@@ -19,3 +19,6 @@ dist/
 npm-debug.log*
 .vite/
 *.tsbuildinfo
+
+# 本地临时文件（测试脚本、日志等，不提交）
+tmp/
