@@ -24,7 +24,7 @@
 | 构建 | Maven (wrapper 未配置，用系统 mvn) |
 | 认证 | `X-API-Key` Header 拦截器 |
 | Web 前端 | Vite 5 + React 18 + TypeScript + Ant Design 5 *(已实现)* |
-| Android | Kotlin + Jetpack Compose *(尚未实现)* |
+| Android | Kotlin 2.2 + Jetpack Compose + Glance *(P3/P4/P5 已实现，见下)* |
 | macOS | SwiftUI + WidgetKit *(尚未实现)* |
 | AI | DeepSeek API (deepseek-v4-flash, JSON Mode + 流式) *(已实现)* |
 | 脚本沙箱 | Mozilla Rhino 1.7.14（自定义循环规则，ClassShutter 隔离） |
@@ -51,19 +51,21 @@ ToDoList- TimeTable/
 │       │   │   ├── WebConfig.java             # CORS 配置
 │       │   │   ├── WebMvcConfig.java          # 拦截器注册
 │       │   │   ├── DeepSeekProperties.java    # deepseek.api.* 配置绑定
-│       │   │   ├── JacksonConfig.java         # 宽松 LocalDateTime 反序列化
-│       │   │   └── RecurringTodoScheduler.java # 循环待办定时扫描 (60s)
+│       │   │   ├── JacksonConfig.java         # 宽松 LocalDateTime/LocalTime 反序列化
+│       │   │   ├── RecurringTodoScheduler.java # 循环待办定时扫描 (60s)
+│       │   │   └── ExamTodoScheduler.java     # 考试结束自动完成关联待办 (60s)
 │       │   ├── controller/
 │       │   │   ├── AuthController.java        # /api/auth
 │       │   │   ├── ScheduleController.java    # /api/schedules
 │       │   │   ├── CourseController.java      # /api/courses, /api/schedules/{id}/courses
 │       │   │   ├── TodoController.java        # /api/todos
+│       │   │   ├── ExamController.java        # /api/exams, /api/schedules/{id}/exams
 │       │   │   ├── PeriodConfigController.java # /api/period-config
 │       │   │   └── AiController.java          # /api/ai
 │       │   ├── dto/
 │       │   │   ├── ApiResponse.java           # 统一响应 {code, message, data}
 │       │   │   ├── AuthVerifyResponse.java
-│       │   │   ├── ScheduleRequest.java / CourseRequest.java
+│       │   │   ├── ScheduleRequest.java / CourseRequest.java / ExamRequest.java
 │       │   │   ├── TodoRequest.java / PeriodConfigRequest.java
 │       │   │   ├── BatchCourseRequest.java
 │       │   │   └── AiConversationRequest / AiMessageRequest / AiMessageResponse
@@ -72,20 +74,22 @@ ToDoList- TimeTable/
 │       │   │   ├── ApiKey.java                # api_key 表
 │       │   │   ├── Schedule.java              # schedule 表
 │       │   │   ├── Course.java                # course 表
-│       │   │   ├── Todo.java                  # todo 表
+│       │   │   ├── Exam.java                  # exam 表（schedule_id 归属，不关联课程）
+│       │   │   ├── Todo.java                  # todo 表（含 recurring_id / exam_id）
 │       │   │   ├── PeriodConfig.java          # period_config 表
 │       │   │   ├── AiConversation.java        # ai_conversation 表
 │       │   │   └── AiMessage.java             # ai_message 表
-│       │   ├── mapper/                        # MyBatis-Plus Mapper (7个)
+│       │   ├── mapper/                        # MyBatis-Plus Mapper (8个，含 ExamMapper)
 │       │   ├── service/
-│       │   │   ├── ApiKeyService / ScheduleService / CourseService
+│       │   │   ├── ApiKeyService / ScheduleService / CourseService / ExamService
 │       │   │   │   / TodoService / PeriodConfigService
 │       │   │   ├── AiService.java             # AI 对话/执行/HTML解析
 │       │   │   ├── DeepSeekClient.java        # JSON Mode 调用抽象
 │       │   │   └── impl/
-│       │   │       ├── AiServiceImpl.java     # 提案存储 + execute 落库
+│       │   │       ├── AiServiceImpl.java     # 提案存储 + execute 落库 + 工作空间保护
 │       │   │       ├── AiPromptBuilder.java   # System Prompt (日期/周次/上下文注入)
 │       │   │       ├── JsonTextStreamExtractor.java # 流式增量提取 text 字段
+│       │   │       ├── ExamServiceImpl.java   # 考试 CRUD + 自动关联待办
 │       │   │       ├── RecurringScheduleCalculator.java # 触发时间推算
 │       │   │       ├── RecurringScriptEvaluator.java   # Rhino 沙箱 (安全关键)
 │       │   │       └── DeepSeekClientImpl.java # java.net.http.HttpClient
@@ -104,31 +108,67 @@ ToDoList- TimeTable/
     ├── package.json / tsconfig.json / vite.config.ts   # dev 代理 /api → :8080
     ├── index.html
     └── src/
-        ├── main.tsx                        # ConfigProvider(zhCN) + Router + AppProvider
+        ├── main.tsx                        # FontProvider + ConfigProvider(zhCN) + Router + AppProvider
         ├── App.tsx                         # 未登录→LoginPage，已登录→AppLayout+路由
-        ├── index.css                       # 课表网格/聊天气泡等自定义样式
+        ├── index.css                       # 课表网格/聊天气泡/响应式/字体变量等自定义样式
         ├── types/index.ts                  # 所有后端 DTO 的 TS 类型
         ├── api/
         │   ├── client.ts                   # fetch 封装、X-API-Key、401 全局处理
-        │   └── index.ts                    # authApi/scheduleApi/courseApi/todoApi
+        │   └── index.ts                    # authApi/scheduleApi/courseApi/todoApi/examApi
         │                                   #  /periodApi/aiApi
-        ├── store/AppContext.tsx            # 全局状态 + 30s 轮询同步
+        ├── store/
+        │   ├── AppContext.tsx              # 全局状态 + 30s 轮询同步
+        │   └── FontContext.tsx             # 字体大小设置（localStorage + CSS 变量）
         ├── utils/
         │   ├── schedule.ts                 # 周次换算、倒计时格式化、周次区间解析
         │   └── color.ts                    # 课程名 → 稳定配色
-        ├── components/   # 含 RecurringFormModal / RecurringTodoPanel / CourseListView
-        │   ├── AppLayout.tsx               # 顶栏导航 + 课表切换 + 周次显示 + 登出
-        │   ├── TimetableGrid.tsx           # 7×12 网格，跨节 rowSpan，冲突选一+角标
+        ├── components/
+        │   ├── AppLayout.tsx               # 顶栏 + 侧边栏导航（窄屏变抽屉）+ 登出
+        │   ├── TimetableGrid.tsx           # 7×12 网格，跨节 rowSpan，冲突角标，考试红色块
+        │   ├── CourseListView.tsx          # 全部课程（卡片式，非表格）
         │   ├── CourseFormModal.tsx         # 课程增删改 + 周次快捷输入
+        │   ├── ExamManagerModal.tsx        # 考试管理（增删改，不含课程关联）
         │   ├── ScheduleManagerModal.tsx    # 课表 CRUD
         │   ├── ImportHtmlModal.tsx         # 粘贴HTML→AI解析→预览勾选→批量导入
         │   └── AiActionCard.tsx            # AI 操作提案卡片 + 确认执行/取消
         └── pages/
             ├── LoginPage.tsx               # API Key 登录
-            ├── TimetablePage.tsx           # 按周/全部视图、周次切换
-            ├── TodosPage.tsx               # 待办列表 + 秒级倒计时
-            ├── AiChatPage.tsx              # 多轮对话 + 会话列表
-            └── SettingsPage.tsx            # 作息时间表配置 + 账号
+            ├── TimetablePage.tsx           # 按周/全部视图、周次切换、考试管理
+            ├── TodosPage.tsx               # 待办列表 + 秒级倒计时 + 循环任务
+            ├── AiChatPage.tsx              # 多轮对话 + 会话列表（工作空间保护）
+            ├── UserManualPage.tsx          # 用户手册（内置页）
+            └── SettingsPage.tsx            # 作息时间表(只读限制) + 字体大小 + 账号
+└── android/                               # Android 客户端 (Kotlin + Compose，已实现 P3/P4/P5)
+    ├── settings.gradle.kts / build.gradle.kts / gradle.properties
+    ├── gradlew (Wrapper 8.13)
+    ├── hidden-api/                        # android.net.IConnectivityManager 编译桩 (Shizuku)
+    └── app/
+        ├── build.gradle.kts               # minSdk 27, targetSdk 36
+        └── src/main/
+            ├── AndroidManifest.xml        # 前台服务 + Glance Widget + Shizuku Provider
+            ├── java/com/timetable/android/
+            │   ├── MainActivity.kt        # 登录→AppScaffold 导航 + 通知权限申请
+            │   ├── TimetableApp.kt
+            │   ├── data/                  # Models/Network/Retrofit API/Settings/Repository
+            │   │   ├── Models.kt / TimetableApi.kt / Network.kt / Settings.kt
+            │   │   ├── TimetableRepository.kt
+            │   │   └── ScheduleEngine.kt  # 周次/当天课程/上课进度状态机
+            │   ├── util/ScheduleCalc.kt   # 倒计时/周次换算 (移植自前端)
+            │   ├── ui/                    # Compose: AppViewModel/AppScaffold/Theme + screen/
+            │   │   ├── AppViewModel.kt    # 登录/登出/同步 + 启停提醒服务
+            │   │   ├── AppScaffold.kt     # 底部导航 (课表/待办/设置)
+            │   │   └── screen/            # Login/Timetable/Todos/Settings 页
+            │   ├── widget/                # Glance 4x6 Widget + WidgetFetcher
+            │   │   ├── ScheduleWidget.kt  # 当天课程最近两条 + 待办最近三条 + 倒计时
+            │   │   └── WidgetFetcher.kt
+            │   └── reminder/              # 上课/考试提醒
+            │       ├── ReminderEngine.kt  # 课前/上课中/下课/考试 状态机
+            │       ├── ScheduleReminderService.kt # 前台服务 30s 轮询
+            │       ├── SuperIslandNotifier.kt     # focus-api + Shizuku XMSF 绕过
+            │       ├── LiveUpdateNotifier.kt      # 标准通知降级
+            │       ├── ShizukuHelper.kt   # Shizuku 权限 + Binder 封装
+            │       └── Notifier.kt        # 通知渠道/构建
+            └── res/                       # 图标/小组件布局/主题
 ```
 
 ---
@@ -141,6 +181,9 @@ ToDoList- TimeTable/
 # 编译 (需先装好 Java 17+ 和 Maven)
 cd backend
 mvn compile
+
+# 本地运行（推荐）：加载 application-local.yml（含本地 DB 密码 + DeepSeek key）
+mvn spring-boot:run -Dspring-boot.run.profiles=local
 
 # 运行 (需先启动 MySQL)
 mvn spring-boot:run
@@ -168,6 +211,19 @@ npm run typecheck    # tsc --noEmit
 npm run build        # tsc -b && vite build → dist/
 ```
 
+### Android
+
+```bash
+cd android
+export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
+export ANDROID_HOME="$HOME/Library/Android/sdk"
+./gradlew assembleDebug          # 构建 debug APK → app/build/outputs/apk/debug/
+./gradlew testDebugUnitTest      # 运行 JVM 单元测试 (ScheduleEngine)
+./gradlew installDebug           # 安装到已连接设备/模拟器
+```
+> 依赖走国内镜像（Aliyun）替代被墙的 Maven Central；如遇 403 需检查网络镜像配置。
+> 首次构建会自动用 Gradle 8.13 Wrapper 下载依赖。
+
 
 ---
 
@@ -181,7 +237,8 @@ npm run build        # tsc -b && vite build → dist/
 | `schedule` | id (BIGINT AUTO) | 课表，含 api_key 外键 |
 | `period_config` | period_number (TINYINT) | 作息时间表，全局配置 |
 | `course` | id (BIGINT AUTO) | 课程，含 schedule_id 外键，weeks 为 JSON |
-| `todo` | id (BIGINT AUTO) | 待办，含 api_key 外键 |
+| `exam` | id (BIGINT AUTO) | 考试，含 schedule_id 外键（不关联课程）；直接输入日期/起止时间 |
+| `todo` | id (BIGINT AUTO) | 待办，含 api_key 外键；recurring_id 指循环规则，exam_id 指考试 |
 | `ai_conversation` | id (BIGINT AUTO) | AI 对话，含 api_key + schedule_id |
 | `ai_message` | id (BIGINT AUTO) | AI 消息，含 role/content（action_* 列已废弃，保留兼容） |
 | `ai_action` | id (BIGINT AUTO) | AI 操作提案，一条消息可有多条；含 scope/status/data/fingerprint |
@@ -189,9 +246,13 @@ npm run build        # tsc -b && vite build → dist/
 
 ### MySQL 连接
 
-**Host**: `localhost:3306` / **Database**: `timetable` / **User**: `root` / **Password**: `root`
+**Host**: `localhost:3306` / **Database**: `timetable`
+- 本地开发用 `application-local.yml`（datasource 密码 `<REDACTED_PASSWORD>`，且 `sql.init.mode=never`，
+  故本地 schema 变更需**手动 ALTER**）
+- 生产用 `application-prod.yml`（`sql.init.mode=always`，启动自动建表）
 
-启动时 `application.yml` 配置了 `spring.sql.init.mode=always`，会自动执行 `schema.sql` 和 `data.sql`。
+> 注意：本地 profile 是 `sql.init.mode=never`，改 schema.sql 后本地表结构不会自动更新，
+> 需手动 `ALTER TABLE`。`application.yml` 默认 `root/root`，本地实际密码见 `application-local.yml`。
 
 ### 默认数据
 
@@ -226,6 +287,10 @@ npm run build        # tsc -b && vite build → dist/
 | PUT | `/api/todos/{id}` | 修改待办 |
 | DELETE | `/api/todos/{id}` | 删除待办 |
 | PUT | `/api/todos/{id}/toggle` | 切换待办完成状态 |
+| GET | `/api/schedules/{id}/exams` | 获取课表下所有考试 |
+| POST | `/api/schedules/{id}/exams` | 新增考试（body：name/location/examDate/startTime/endTime） |
+| PUT | `/api/exams/{id}` | 修改考试 |
+| DELETE | `/api/exams/{id}` | 删除考试 |
 | GET | `/api/recurring-todos` | 循环待办规则列表 |
 | POST | `/api/recurring-todos` | 新建循环规则 |
 | PUT | `/api/recurring-todos/{id}` | 修改循环规则 |
@@ -294,7 +359,7 @@ Controller → Service (接口) → ServiceImpl → Mapper (MyBatis-Plus)
 
 ## 8. 开发进度
 
-> 最后更新：2026-08-07
+> 最后更新：2026-08-08
 
 | 阶段 | 内容 | 状态 |
 |------|------|------|
@@ -303,13 +368,18 @@ Controller → Service (接口) → ServiceImpl → Mapper (MyBatis-Plus)
 | P2 Web 前端 | React + Ant Design 课表视图、待办、AI 对话、导入 | **已完成（已上线 https://todo.tangent0712.top）** |
 | P2.5 循环待办 | 每日/每周/每月规则、自动生成、AI 增删改查 | **已完成** |
 | P2.6 自定义循环规则 | Rhino 沙箱脚本引擎 | **已完成** |
-| P3 Android | 课表查看、待办查看、同步 | *未开始* |
-| P4 Android 小组件 | Glance 4x6 Widget、DDL倒计时 | *未开始* |
-| P5 Android 灵动岛 | FocusNotification + Shizuku + LiveUpdate | *未开始* |
+| P2.7 考试记录 | 直接输入起止时间、课表红色块展示、独立考试、自动关联待办、AI 增删改查 | **已完成** |
+| P2.8 前端体验 | 响应式窄屏布局、字体大小设置、用户手册页、作息时间表只读权限 | **已完成** |
+| P3 Android | 课表查看、待办查看、同步 | **已完成** |
+| P4 Android 小组件 | Glance 4x6 Widget、DDL倒计时 | **已完成** |
+| P5 Android 灵动岛 | FocusNotification + Shizuku + LiveUpdate | **已完成** |
 | P6 Mac 小组件 | SwiftUI Notification Center Widget | *未开始* |
 
 > **生产部署已完成**：站点 https://todo.tangent0712.top，后端跑在 <REDACTED_SERVER_IP>:8200。
 > 部署与运维见 `docs/DEPLOYMENT.md`，全部账号/密钥见 `docs/CREDENTIALS.md`（敏感，勿提交）。
+>
+> **Android 客户端**：`android/`，Gradle 8.13 Wrapper + Kotlin 2.2 + AGP 8.7.3，
+> 依赖国内镜像（Aliyun）替代被墙的 Maven Central。构建：`cd android && ./gradlew assembleDebug`。
 
 ### 待开发事项（TODO）
 
@@ -342,17 +412,37 @@ deepseek:
   `enabled=false`，业务调用抛 `503`
 - `AiPromptBuilder.buildChatSystemPrompt` 注入：今天/明天日期与星期、当前第几周、
   近 4 周的「日期→第几周周几」对照表、作息时间表、该课表全部课程（带真实 id）、
-  全部待办（带 id），并写明「下周一/每周一/周三」的语义约定
-- AI 返回 `{text, actions[]}`，**一次可返回多个提案**，每个提案独立成一条 `ai_action`
-  记录、独立确认执行，前端渲染成多张卡片
+  全部考试（带 id）、全部待办（带 id），
+  并写明「下周一/每周一/周三」的语义约定
+- AI 返回 `{text, actions[]}`，**一次可返回多个提案**，每条**数据库基本操作**独立成一条
+  `ai_action` 记录、独立渲染成一张卡片，各自有独立的「确认执行/取消」按钮；
+  **不做一键全部执行**（删除 7 条记录就是 7 张独立的「删除」卡片，逐条确认）
+- 若 AI 把多条记录塞进同一个 action（如 `{"exams":[e1,e2,e3]}` 或 `{"courseIds":[1,2,3]}`），
+  后端 `splitToSingleActions` 会按数组字段（courses/courseIds/todos/todoIds/rules/
+  recurringIds/exams/examIds）**逐条拆成独立 ai_action**，保证一条操作一张卡、可单独确认执行
 - 支持的 action.type：`CREATE_COURSE` / `UPDATE_COURSE` / `DELETE_COURSE` /
   `CREATE_TODO` / `UPDATE_TODO` / `DELETE_TODO` / `TOGGLE_TODO` /
-  `CREATE_RECURRING` / `UPDATE_RECURRING` / `DELETE_RECURRING` / `TOGGLE_RECURRING`
-- 超出这 7 种能力（查天气、发邮件、改作息表等）或指令模糊时，Prompt 要求 AI
+  `CREATE_RECURRING` / `UPDATE_RECURRING` / `DELETE_RECURRING` / `TOGGLE_RECURRING` /
+  `CREATE_EXAM` / `UPDATE_EXAM` / `DELETE_EXAM`
+- 考试 action 的 `data`：`{"exams":[{"name":"课程名+考试类型",`
+  `"location":...,"examDate":"yyyy-MM-dd","startTime":"HH:mm","endTime":"HH:mm"}]}`；
+  考试不关联课程，直接用名称/类型命名（如「数据结构期末考试」「CET-6」）
+- 超出这些能力（查天气、发邮件、改作息表等）或指令模糊时，Prompt 要求 AI
   直接简短说明做不到 / 追问，`actions` 返回 `[]`，不做长时间推理
 - `max_tokens=16384` + `reasoning_effort=low` 限制推理预算，避免思考过长导致正文为空；
   若仍撞上 `finish_reason=length`，返回「AI 思考过长」提示而非笼统报错
-- 执行时复用现有 `CourseService` / `TodoService`，因此所有权校验自动生效
+- 执行时复用现有 `CourseService` / `TodoService` / `ExamService`，
+  因此所有权校验自动生效
+
+### 工作空间保护
+
+每个 AI 对话绑定一个课表（`ai_conversation.schedule_id`）作为**工作空间**。
+- 发消息时若请求的 `scheduleId` 与对话绑定课表不一致，后端抛 `400`
+  （提示属于哪个课表，需切换或新建），防止串到其它课表的数据
+- 前端 `AiChatPage` 计算 `workspaceMismatch`，不一致时**锁定**输入框/发送/执行/取消，
+  顶部标签显示对话所属工作空间名称（不一致时红色 ⚠ 提示）
+- 执行/取消提案走对话的 `scheduleId`（`executeAction` 用 `conversation.getScheduleId()`），
+  天然限定在对话自己的工作空间内
 
 ### 流式输出（思考 → 输出 → 执行）
 
@@ -494,10 +584,83 @@ Rhino 提供 `ClassShutter` + 指令计数 + 栈深限制，可在进程内安�
 
 ---
 
-## 11. 注意事项
+## 11. 考试记录
+
+考试记录用于期末周等场景，存在 `exam` 表，**不按课时计算时间**，直接输入日期与起止时间。
+
+| 字段 | 说明 |
+|------|------|
+| `schedule_id` | 所属课表（归属/权限判定） |
+| `name` | 考试名；直接用考试名称/类型（如「数据结构期末考试」「CET-6」），不关联课程 |
+| `exam_date` / `start_time` / `end_time` | 直接输入的日期与起止时间 |
+| `location` | 地点，可空 |
+
+### 课表展示
+
+- 所有考试在网格中**都像独立考试一样渲染**：在 `exam_date` 当天、
+  按其起止时间对齐到作息节次区间，单独占一格**红色块**（`.exam-block`，非课程、固定红色）
+- 考试块只显示**考试名称、起止时间（两行）、地点**，不关联/不显示课程
+- 点击考试块进入考试管理
+- `TimetableGrid.examPeriods` 把起止时间近似映射到节次区间用于占位
+
+### 自动关联待办
+
+创建/修改/删除考试时，`ExamServiceImpl` 会同步操作一条关联待办（`todo.exam_id`）：
+- **创建** → 自动生成待办，`ddl = 考试开始时间`，标题=考试名
+- **修改** → 同步关联待办的标题与截止时间
+- **删除** → 一并删除关联待办
+- **`ExamTodoScheduler`** 每 60s 扫描一次（启动补扫），考试结束
+  （`examDate + endTime` 已过）后自动把关联且未完成的待办标记完成（幂等）
+- 前端待办列表里，考试关联待办显示红色「考试」标签（类似循环待办的「循环」标签）
+
+> 注意：`todo.exam_id` 是新增列，生产库需手动 `ALTER TABLE todo ADD COLUMN exam_id BIGINT NULL`
+> （生产 `application-prod.yml` 用 `sql.init.mode=always`，`CREATE IF NOT EXISTS` 不会给
+> 已存在的表补列；`exam` 表可由 schema.sql 自动创建）。
+
+### AI 关联
+
+考试归入 `SCOPE_COURSE` 作用域，`CREATE_EXAM / UPDATE_EXAM / DELETE_EXAM` 可被 AI 生成并执行；
+`UPDATE_EXAM / DELETE_EXAM` 的 `data._before` 含修改前快照，前端差异卡只展示变化字段。
+
+---
+
+## 12. 前端体验
+
+### 响应式布局（窄屏适配）
+
+- 断点 `≤900px`：**侧边栏**（AppLayout）与 **AI 对话列表**（AiChatPage）变为左侧抽屉
+  （默认移出屏幕，点汉堡/「对话」按钮滑入 + 半透明遮罩）；内容区 padding 收窄
+- 断点 `≤640px`（手机）：课表网格列宽自动收缩（`minmax(0,1fr)`）**不横向滚动**、
+  弹窗贴顶限宽、页头纵向堆叠、聊天输入纵向堆叠
+- 课表网格 `height:100%` + `grid-auto-rows: minmax(48px,1fr)` **占满剩余高度**不留底部空隙；
+  节次侧栏时间两行、字号缩小；考试块时间两行
+- 全部课程页为**卡片式**（`.course-card-grid` 响应式网格，非表格，天然无横向溢出）
+
+### 字体大小设置（FontContext）
+
+- `store/FontContext.tsx`：两档字号存 localStorage（`timetable.fontScaleGlobal` /
+  `timetable.fontScaleTimetable`），通过 CSS 变量 `--app-font-scale` 与 `--tt-scale` 生效
+- 全局字体：写入 antd `ConfigProvider` 的 `fontSize` token（theme.tsx）+ body `font-size: calc(13px * var(--app-font-scale))`
+- 课表字体：课表网格各字号用 `em`（相对 `calc(12px * var(--tt-scale))` 基值），改基值即可整体缩放
+- 设置页提供两个滑块（0.8–1.4×）+ 重置按钮
+
+### 作息时间表访问控制
+
+- 仅 label 为 **`Tangent0712`** 的账号可编辑作息时间表；其余用户：
+  顶部显示红色只读提示「这是南京邮电大学标准作息时间表，仅供阅读，不可编辑！」、
+  隐藏保存按钮、控件不变灰但不可点击（`open={false}` / `inputReadOnly`）
+- 判断基于前端 `label === 'Tangent0712'`（简单校验，产品定位为好友自用）
+
+---
+
+## 13. 注意事项
 
 1. **多用户设计**: 每个 API Key 独立数据空间，Key 由管理员在数据库 `api_key` 表预设
 2. **Course.weeks**: MySQL JSON 类型，MyBatis-Plus 用 `JacksonTypeHandler` 映射为 `List<Integer>`
 3. **CORS**: `WebConfig` 中对 `/api/**` 放开了所有来源
 4. **事务**: `BatchCourseRequest` 批量添加课程标注了 `@Transactional`
 5. **Schedule GET /{id}**: 返回 `{schedule: {...}, courses: [...]}` 组合结构
+6. **考试不关联课程**: `exam` 表已删除 `course_id` 列（本地与生产库均已 ALTER），
+   考试只含名称/日期/起止时间/地点，网格中统一渲染为独立红色块
+7. **文档**: 用户使用手册见 `docs/USER_MANUAL.md`（给非技术朋友），前端内置「用户手册」页 `/manual`
+   
