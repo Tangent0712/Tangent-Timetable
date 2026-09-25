@@ -32,4 +32,5 @@ deepseek:
   api:
     key: ${DEEPSEEK_API_KEY:your-deepseek-api-key}
     base-url: ${DEEPSEEK_BASE_URL:https://api.deepseek.com}
-    model: ${DEEPSEEK_MODEL:deepseek-v4-flash}
+    # deepseek-flash 对应模型版本 DeepSeek-V4.1-Flash
+    model: ${DEEPSEEK_MODEL:deepseek-flash}

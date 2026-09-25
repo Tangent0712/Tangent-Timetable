@@ -100,7 +100,7 @@ npm run dev        # http://localhost:5173，/api 已代理到 :8080
 | `TANGENT_COMMON_PASSWORD` | MySQL 密码 | `root` |
 | `DEEPSEEK_API_KEY` | DeepSeek 密钥；不配置则 AI 功能禁用 | 空 |
 | `DEEPSEEK_BASE_URL` | DeepSeek 接口地址 | `https://api.deepseek.com` |
-| `DEEPSEEK_MODEL` | 模型名 | `deepseek-v4-flash` |
+| `DEEPSEEK_MODEL` | 模型名（`deepseek-flash` = DeepSeek-V4.1-Flash） | `deepseek-flash` |
 | `CORS_ALLOWED_ORIGINS` | 允许跨域的来源（逗号分隔） | `*` |
 | `ADMIN_LABELS` | 可编辑全局作息表的账号 label（逗号分隔） | `Tangent0712` |
 | `VITE_API_BASE`（前端） | 前端 API 基地址 | `/api` |

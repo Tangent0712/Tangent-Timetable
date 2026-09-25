@@ -8,7 +8,8 @@ import org.springframework.stereotype.Component;
 public class DeepSeekProperties {
     private String key;
     private String baseUrl = "https://api.deepseek.com";
-    private String model = "deepseek-v4-flash";
+    /** 官方模型名 deepseek-flash（模型版本 DeepSeek-V4.1-Flash） */
+    private String model = "deepseek-flash";
     private int timeoutSeconds = 120;
     /** 输出 token 上限（含推理），防止长时间思考把预算耗尽导致正文为空 */
     private int maxTokens = 16384;

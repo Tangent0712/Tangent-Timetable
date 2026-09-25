@@ -360,7 +360,7 @@ deepseek:
   api:
     key: ${DEEPSEEK_API_KEY:your-deepseek-api-key}
     base-url: ${DEEPSEEK_BASE_URL:https://api.deepseek.com}
-    model: ${DEEPSEEK_MODEL:deepseek-v4-flash}
+    model: ${DEEPSEEK_MODEL:deepseek-flash}
 ```
 
 - `DeepSeekClientImpl` 用 `java.net.http.HttpClient` 调 `/chat/completions`，
