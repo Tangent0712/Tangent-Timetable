@@ -10,6 +10,7 @@ import com.timetable.entity.AiConversation;
 import com.timetable.exception.BusinessException;
 import com.timetable.interceptor.RequestContext;
 import com.timetable.service.AiService;
+import jakarta.annotation.PreDestroy;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,8 +22,11 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @RestController
 @RequestMapping("/api/ai")
@@ -30,12 +34,28 @@ public class AiController {
 
     private static final Logger log = LoggerFactory.getLogger(AiController.class);
     private static final long STREAM_TIMEOUT_MS = 300_000L;
+    private static final AtomicInteger STREAM_THREAD_SEQ = new AtomicInteger();
 
     private final AiService aiService;
-    private final ExecutorService streamExecutor = Executors.newCachedThreadPool();
+
+    // 有界线程池：限制并发流式任务，队列满时由调用线程执行以形成背压，避免无限创建线程
+    private final ExecutorService streamExecutor = new ThreadPoolExecutor(
+            4, 16, 60L, TimeUnit.SECONDS,
+            new ArrayBlockingQueue<>(64),
+            r -> {
+                Thread t = new Thread(r, "ai-stream-" + STREAM_THREAD_SEQ.incrementAndGet());
+                t.setDaemon(true);
+                return t;
+            },
+            new ThreadPoolExecutor.CallerRunsPolicy());
 
     public AiController(AiService aiService) {
         this.aiService = aiService;
+    }
+
+    @PreDestroy
+    public void shutdownStreamExecutor() {
+        streamExecutor.shutdown();
     }
 
     @GetMapping("/status")

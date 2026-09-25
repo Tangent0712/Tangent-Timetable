@@ -14,16 +14,17 @@ spring:
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
   global-config:
     db-config:
       id-type: auto
-      logic-delete-field: deleted
-      logic-delete-value: 1
-      logic-not-delete-value: 0
 
 server:
   port: 8080
+
+app:
+  cors:
+    # 允许的跨域来源（逗号分隔）。默认 *；认证走请求头而非 Cookie，故不开启凭据。
+    allowed-origin-patterns: ${CORS_ALLOWED_ORIGINS:*}
 
 deepseek:
   api:

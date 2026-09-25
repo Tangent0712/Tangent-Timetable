@@ -33,6 +33,13 @@ public class CourseServiceImpl implements CourseService {
         }
     }
 
+    private void validatePeriods(CourseRequest request) {
+        if (request.getStartPeriod() != null && request.getEndPeriod() != null
+                && request.getEndPeriod() < request.getStartPeriod()) {
+            throw new BusinessException(400, "结束节次不能小于开始节次");
+        }
+    }
+
     @Override
     public List<Course> listByScheduleId(Long scheduleId, String apiKey) {
         verifyScheduleOwnership(scheduleId, apiKey);
@@ -44,6 +51,7 @@ public class CourseServiceImpl implements CourseService {
     @Override
     public Course create(Long scheduleId, CourseRequest request, String apiKey) {
         verifyScheduleOwnership(scheduleId, apiKey);
+        validatePeriods(request);
         Course course = new Course();
         course.setScheduleId(scheduleId);
         course.setName(request.getName());
@@ -63,6 +71,7 @@ public class CourseServiceImpl implements CourseService {
         verifyScheduleOwnership(scheduleId, apiKey);
         List<Course> result = new ArrayList<>();
         for (CourseRequest req : request.getCourses()) {
+            validatePeriods(req);
             Course course = new Course();
             course.setScheduleId(scheduleId);
             course.setName(req.getName());
@@ -85,6 +94,7 @@ public class CourseServiceImpl implements CourseService {
             throw new BusinessException(404, "课程不存在");
         }
         verifyScheduleOwnership(course.getScheduleId(), apiKey);
+        validatePeriods(request);
         course.setName(request.getName());
         course.setLocation(request.getLocation());
         course.setTeacher(request.getTeacher());

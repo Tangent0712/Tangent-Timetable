@@ -49,8 +49,10 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class AiServiceImpl implements AiService {
@@ -112,9 +114,14 @@ public class AiServiceImpl implements AiService {
 
     @Override
     public AiConversation createConversation(AiConversationRequest request, String apiKey) {
+        Long scheduleId = request == null ? null : request.getScheduleId();
+        if (scheduleId != null) {
+            // 校验课表归属，避免把对话绑定到他人的课表
+            scheduleService.getById(scheduleId, apiKey);
+        }
         AiConversation conversation = new AiConversation();
         conversation.setApiKey(apiKey);
-        conversation.setScheduleId(request == null ? null : request.getScheduleId());
+        conversation.setScheduleId(scheduleId);
         String title = request == null ? null : request.getTitle();
         conversation.setTitle(
                 title == null || title.isBlank() ? nextDefaultTitle(apiKey) : title.trim());
@@ -156,6 +163,7 @@ public class AiServiceImpl implements AiService {
     }
 
     @Override
+    @Transactional
     public void deleteConversation(Long conversationId, String apiKey) {
         getConversation(conversationId, apiKey);
         List<AiMessage> messages = loadMessages(conversationId);
@@ -198,6 +206,19 @@ public class AiServiceImpl implements AiService {
         wrapper.eq(AiAction::getMessageId, messageId)
                 .orderByAsc(AiAction::getSortOrder, AiAction::getId);
         return actionMapper.selectList(wrapper);
+    }
+
+    /** 批量加载多条消息的提案，避免逐条查询产生 N+1 */
+    private Map<Long, List<AiAction>> loadActionsGrouped(List<Long> messageIds) {
+        if (messageIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        LambdaQueryWrapper<AiAction> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(AiAction::getMessageId, messageIds)
+                .orderByAsc(AiAction::getMessageId, AiAction::getSortOrder, AiAction::getId);
+        return actionMapper.selectList(wrapper).stream()
+                .collect(Collectors.groupingBy(AiAction::getMessageId,
+                        LinkedHashMap::new, Collectors.toList()));
     }
 
     // ==================== 作用域与指纹 ====================
@@ -294,14 +315,21 @@ public class AiServiceImpl implements AiService {
     @Override
     public List<AiMessageResponse> listMessages(Long conversationId, String apiKey) {
         getConversation(conversationId, apiKey);
+        List<AiMessage> messages = loadMessages(conversationId);
+        Map<Long, List<AiAction>> actionsByMessage = loadActionsGrouped(
+                messages.stream().map(AiMessage::getId).toList());
         List<AiMessageResponse> result = new ArrayList<>();
-        for (AiMessage m : loadMessages(conversationId)) {
-            result.add(toResponse(m));
+        for (AiMessage m : messages) {
+            result.add(toResponse(m, actionsByMessage.getOrDefault(m.getId(), List.of())));
         }
         return result;
     }
 
     private AiMessageResponse toResponse(AiMessage message) {
+        return toResponse(message, loadActions(message.getId()));
+    }
+
+    private AiMessageResponse toResponse(AiMessage message, List<AiAction> actions) {
         AiMessageResponse response = new AiMessageResponse();
         response.setMessageId(message.getId());
         response.setRole(message.getRole());
@@ -309,7 +337,7 @@ public class AiServiceImpl implements AiService {
         response.setCreatedAt(message.getCreatedAt());
 
         List<AiActionDto> dtos = new ArrayList<>();
-        for (AiAction action : loadActions(message.getId())) {
+        for (AiAction action : actions) {
             JsonNode data = null;
             try {
                 if (action.getActionData() != null) {
@@ -334,7 +362,8 @@ public class AiServiceImpl implements AiService {
     }
 
     @Override
-    @Transactional
+    // 流式接口不开启事务：doSend 内含最长约 2 分钟的远程 AI 调用，
+    // 若包在事务里会长期占用数据库连接，拖垮连接池。
     public AiMessageResponse sendMessageStream(Long conversationId, AiMessageRequest request,
                                               String apiKey, StreamCallback callback) {
         return doSend(conversationId, request, apiKey, callback);
@@ -378,8 +407,11 @@ public class AiServiceImpl implements AiService {
 
         List<AiMessage> history = loadMessages(conversationId);
         int from = Math.max(0, history.size() - HISTORY_LIMIT);
-        for (int i = from; i < history.size(); i++) {
-            AiMessage m = history.get(i);
+        List<AiMessage> window = history.subList(from, history.size());
+        Map<Long, List<AiAction>> historyActions = loadActionsGrouped(
+                window.stream().filter(m -> "assistant".equals(m.getRole()))
+                        .map(AiMessage::getId).toList());
+        for (AiMessage m : window) {
             String content = m.getContent() == null ? "" : m.getContent();
 
             if (!"assistant".equals(m.getRole())) {
@@ -389,7 +421,7 @@ public class AiServiceImpl implements AiService {
 
             // assistant 历史必须还原成「模型当初本该输出的合法 JSON」。
             // 若在这里拼入自定义标注（如 [提案: ...]），模型会模仿该格式而不再输出 JSON。
-            List<AiAction> acts = loadActions(m.getId());
+            List<AiAction> acts = historyActions.getOrDefault(m.getId(), List.of());
             ObjectNode replay = objectMapper.createObjectNode();
             replay.put("text", content);
             ArrayNode actionsNode = replay.putArray("actions");
@@ -477,6 +509,8 @@ public class AiServiceImpl implements AiService {
 
         // 本次提案涉及的作用域，仅让这些作用域内的旧提案失效
         int order = 0;
+        // 指纹按作用域计算一次即可，避免在循环里反复全量扫描
+        Map<String, String> fingerprintCache = new HashMap<>();
         List<AiAction> created = new ArrayList<>();
         for (JsonNode node : actionNodes) {
             String type = node.path("type").asText("");
@@ -505,7 +539,8 @@ public class AiServiceImpl implements AiService {
                 } catch (Exception e) {
                     throw new BusinessException(502, "AI 返回的操作数据无法序列化");
                 }
-                action.setDataFingerprint(fingerprintOf(scope, scheduleId, apiKey));
+                action.setDataFingerprint(
+                        fingerprintCache.computeIfAbsent(scope, sc -> fingerprintOf(sc, scheduleId, apiKey)));
                 action.setSortOrder(order++);
                 created.add(action);
             }

@@ -1,6 +1,5 @@
 package com.timetable.service.impl;
 
-import com.timetable.exception.BusinessException;
 import org.mozilla.javascript.ClassShutter;
 import org.mozilla.javascript.Context;
 import org.mozilla.javascript.ContextFactory;
@@ -112,21 +111,6 @@ public class RecurringScriptEvaluator {
 
     /** 只允许脚本引擎自身必需的类，其余 Java 类全部拒绝 */
     private static final ClassShutter SHUTTER = fullClassName -> false;
-
-    /**
-     * 执行用户脚本，判断此刻是否应触发。
-     *
-     * @param script 用户脚本，需定义 shouldTrigger(ctx) 函数
-     * @param now    当前时间
-     * @param lastTriggeredAt 上次触发时间，可为 null
-     */
-    public boolean evaluate(String script, LocalDateTime now, LocalDateTime lastTriggeredAt) {
-        ScriptResult result = run(script, now, lastTriggeredAt);
-        if (!result.ok()) {
-            throw new BusinessException(400, result.error());
-        }
-        return result.triggered();
-    }
 
     /**
      * 试运行（用于前端「测试脚本」与保存前校验），不抛异常，返回结构化结果。

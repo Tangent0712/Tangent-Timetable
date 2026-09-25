@@ -117,6 +117,7 @@ public class RecurringTodoServiceImpl implements RecurringTodoService {
     }
 
     @Override
+    @Transactional
     public void delete(Long id, String apiKey) {
         getById(id, apiKey);
         // 已生成的待办保留，仅解除关联，避免用户丢失历史记录

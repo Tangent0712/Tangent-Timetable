@@ -35,8 +35,16 @@ public class ScheduleServiceImpl implements ScheduleService {
         return schedule;
     }
 
+    private void validateDateRange(ScheduleRequest request) {
+        if (request.getPeriodStartDate() != null && request.getPeriodEndDate() != null
+                && request.getPeriodEndDate().isBefore(request.getPeriodStartDate())) {
+            throw new BusinessException(400, "学期结束日期不能早于开始日期");
+        }
+    }
+
     @Override
     public Schedule create(ScheduleRequest request, String apiKey) {
+        validateDateRange(request);
         Schedule schedule = new Schedule();
         schedule.setApiKey(apiKey);
         schedule.setName(request.getName());
@@ -48,6 +56,7 @@ public class ScheduleServiceImpl implements ScheduleService {
 
     @Override
     public Schedule update(Long id, ScheduleRequest request, String apiKey) {
+        validateDateRange(request);
         Schedule schedule = getById(id, apiKey);
         schedule.setName(request.getName());
         schedule.setPeriodStartDate(request.getPeriodStartDate());

@@ -99,33 +99,4 @@ public final class RecurringScheduleCalculator {
         return triggeredAt.plus(rule.getDdlOffsetMinutes(), ChronoUnit.MINUTES);
     }
 
-    /** 人类可读的频率描述，用于前端与 AI Prompt */
-    public static String describe(RecurringTodo rule) {
-        String time = rule.getTriggerTime() == null ? "?" : rule.getTriggerTime().toString();
-        if (CUSTOM.equals(rule.getFrequency())) {
-            return "自定义规则（脚本判断），" + describeOffset(rule.getDdlOffsetMinutes()) + "后截止";
-        }
-        String when = switch (rule.getFrequency() == null ? "" : rule.getFrequency()) {
-            case DAILY -> "每天 " + time;
-            case WEEKLY -> "每周" + AiPromptBuilder.weekDayName(
-                    rule.getDayOfWeek() == null ? 0 : rule.getDayOfWeek()).replace("周", "") + " " + time;
-            case MONTHLY -> "每月 " + rule.getDayOfMonth() + " 日 " + time;
-            default -> "未知频率";
-        };
-        return when + " 触发，" + describeOffset(rule.getDdlOffsetMinutes()) + "后截止";
-    }
-
-    public static String describeOffset(Integer minutes) {
-        if (minutes == null) {
-            return "?";
-        }
-        int days = minutes / 1440;
-        int hours = (minutes % 1440) / 60;
-        int mins = minutes % 60;
-        StringBuilder sb = new StringBuilder();
-        if (days > 0) sb.append(days).append(" 天");
-        if (hours > 0) sb.append(hours).append(" 小时");
-        if (mins > 0) sb.append(mins).append(" 分钟");
-        return sb.length() == 0 ? "0 分钟" : sb.toString();
-    }
 }

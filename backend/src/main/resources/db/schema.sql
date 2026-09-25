@@ -88,10 +88,6 @@ CREATE TABLE IF NOT EXISTS ai_message (
     conversation_id BIGINT NOT NULL,
     role VARCHAR(16) NOT NULL,
     content TEXT,
-    action_type VARCHAR(32),
-    action_status VARCHAR(16),
-    action_data JSON,
-    data_fingerprint VARCHAR(64),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (conversation_id) REFERENCES ai_conversation(id) ON DELETE CASCADE,
     INDEX idx_ai_msg_conv (conversation_id)

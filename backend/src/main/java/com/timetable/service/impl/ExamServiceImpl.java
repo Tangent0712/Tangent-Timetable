@@ -11,6 +11,7 @@ import com.timetable.mapper.ScheduleMapper;
 import com.timetable.service.ExamService;
 import com.timetable.service.TodoService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -60,6 +61,7 @@ public class ExamServiceImpl implements ExamService {
     }
 
     @Override
+    @Transactional
     public Exam create(Long scheduleId, ExamRequest request, String apiKey) {
         verifyScheduleOwnership(scheduleId, apiKey);
         validateTimes(request);
@@ -74,6 +76,7 @@ public class ExamServiceImpl implements ExamService {
     }
 
     @Override
+    @Transactional
     public Exam update(Long id, ExamRequest request, String apiKey) {
         Exam exam = examMapper.selectById(id);
         if (exam == null) {
@@ -90,6 +93,7 @@ public class ExamServiceImpl implements ExamService {
     }
 
     @Override
+    @Transactional
     public void delete(Long id, String apiKey) {
         Exam exam = examMapper.selectById(id);
         if (exam == null) {
