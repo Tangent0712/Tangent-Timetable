@@ -37,7 +37,9 @@ import com.timetable.service.TodoService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -80,6 +82,7 @@ public class AiServiceImpl implements AiService {
     private final RecurringTodoService recurringTodoService;
     private final PeriodConfigService periodConfigService;
     private final ObjectMapper objectMapper;
+    private final TransactionTemplate transactionTemplate;
 
     public AiServiceImpl(AiConversationMapper conversationMapper,
                          AiMessageMapper messageMapper,
@@ -91,7 +94,8 @@ public class AiServiceImpl implements AiService {
                          TodoService todoService,
                          RecurringTodoService recurringTodoService,
                          PeriodConfigService periodConfigService,
-                         ObjectMapper objectMapper) {
+                         ObjectMapper objectMapper,
+                         PlatformTransactionManager transactionManager) {
         this.conversationMapper = conversationMapper;
         this.messageMapper = messageMapper;
         this.actionMapper = actionMapper;
@@ -103,6 +107,7 @@ public class AiServiceImpl implements AiService {
         this.recurringTodoService = recurringTodoService;
         this.periodConfigService = periodConfigService;
         this.objectMapper = objectMapper;
+        this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
 
     @Override
@@ -123,8 +128,15 @@ public class AiServiceImpl implements AiService {
         conversation.setApiKey(apiKey);
         conversation.setScheduleId(scheduleId);
         String title = request == null ? null : request.getTitle();
-        conversation.setTitle(
-                title == null || title.isBlank() ? nextDefaultTitle(apiKey) : title.trim());
+        if (title == null || title.isBlank()) {
+            title = nextDefaultTitle(apiKey);
+        } else {
+            title = title.trim();
+            if (title.length() > 100) {
+                title = title.substring(0, 100);
+            }
+        }
+        conversation.setTitle(title);
         conversationMapper.insert(conversation);
         return conversation;
     }
@@ -356,7 +368,7 @@ public class AiServiceImpl implements AiService {
     // ==================== 发送消息 ====================
 
     @Override
-    @Transactional
+    // 不开启事务：doSend 内含远程 AI 调用，落库部分由内部 TransactionTemplate 保证原子性
     public AiMessageResponse sendMessage(Long conversationId, AiMessageRequest request, String apiKey) {
         return doSend(conversationId, request, apiKey, null);
     }
@@ -490,6 +502,20 @@ public class AiServiceImpl implements AiService {
             text = "（AI 未返回内容）";
         }
 
+        // 远程 AI 调用已在事务外完成，这里把落库操作收敛到一个短事务内，保证原子性
+        String finalText = text;
+        final List<Course> finalCourses = courses;
+        final List<Exam> finalExams = exams;
+        return transactionTemplate.execute(status -> persistAssistantResult(
+                conversationId, apiKey, scheduleId, conversation, root, finalText,
+                finalCourses, todos, recurringTodos, finalExams));
+    }
+
+    /** 在事务内落库 AI 回复与提案，并让同作用域旧提案失效 */
+    private AiMessageResponse persistAssistantResult(Long conversationId, String apiKey, Long scheduleId,
+                                                     AiConversation conversation, JsonNode root, String text,
+                                                     List<Course> courses, List<Todo> todos,
+                                                     List<RecurringTodo> recurringTodos, List<Exam> exams) {
         AiMessage assistantMessage = new AiMessage();
         assistantMessage.setConversationId(conversationId);
         assistantMessage.setRole("assistant");

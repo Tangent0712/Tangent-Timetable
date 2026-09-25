@@ -3,6 +3,7 @@ package com.timetable.controller;
 import com.timetable.dto.ApiResponse;
 import com.timetable.dto.PeriodConfigRequest;
 import com.timetable.entity.PeriodConfig;
+import com.timetable.interceptor.RequestContext;
 import com.timetable.service.PeriodConfigService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
@@ -26,6 +27,6 @@ public class PeriodConfigController {
 
     @PutMapping
     public ApiResponse<List<PeriodConfig>> update(@Valid @RequestBody PeriodConfigRequest request) {
-        return ApiResponse.success(periodConfigService.update(request));
+        return ApiResponse.success(periodConfigService.update(request, RequestContext.getApiKey()));
     }
 }

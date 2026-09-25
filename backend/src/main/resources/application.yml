@@ -25,6 +25,8 @@ app:
   cors:
     # 允许的跨域来源（逗号分隔）。默认 *；认证走请求头而非 Cookie，故不开启凭据。
     allowed-origin-patterns: ${CORS_ALLOWED_ORIGINS:*}
+  # 可编辑全局作息时间表的账号 label（逗号分隔）
+  admin-labels: ${ADMIN_LABELS:Tangent0712}
 
 deepseek:
   api:

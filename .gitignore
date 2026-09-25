@@ -11,6 +11,7 @@ target/
 *.swo
 .DS_Store
 application-local.yml
+application-prod.yml
 
 node_modules/
 dist/

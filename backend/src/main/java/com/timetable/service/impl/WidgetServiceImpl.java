@@ -1,11 +1,9 @@
 package com.timetable.service.impl;
 
 import com.timetable.entity.Course;
-import com.timetable.entity.Exam;
 import com.timetable.entity.PeriodConfig;
 import com.timetable.entity.Schedule;
 import com.timetable.entity.Todo;
-import com.timetable.exception.BusinessException;
 import com.timetable.service.CourseService;
 import com.timetable.service.ExamService;
 import com.timetable.service.PeriodConfigService;
@@ -244,7 +242,7 @@ public class WidgetServiceImpl implements WidgetService {
         return prefix + " " + ddl.format(HM);
     }
 
-    /** 距 DDL 剩余时长，按小时精度（刷新频率约 15 分钟，分钟级无意义） */
+    /** 距 DDL 剩余时长，按小时精度展示即可 */
     private String remainText(LocalDateTime ddl, LocalDateTime now) {
         long sec = ChronoUnit.SECONDS.between(now, ddl);
         if (sec < 0) return "已过期";

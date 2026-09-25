@@ -7,5 +7,5 @@ import java.util.List;
 
 public interface PeriodConfigService {
     List<PeriodConfig> list();
-    List<PeriodConfig> update(PeriodConfigRequest request);
+    List<PeriodConfig> update(PeriodConfigRequest request, String apiKey);
 }

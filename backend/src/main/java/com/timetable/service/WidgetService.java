@@ -4,7 +4,7 @@ import java.util.Map;
 
 /**
  * 桌面小组件展示数据聚合。面向宽4×高2 的只读小组件页，
- * 数据随每次请求实时计算（小组件每 15 分钟轮询一次）。
+ * 数据随每次请求实时计算（展示页每 60 秒轮询一次）。
  * 鉴权通过 URL 中的 key 参数完成，不走 Session/Cookie。
  */
 public interface WidgetService {

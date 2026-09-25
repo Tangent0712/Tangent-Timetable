@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -47,7 +48,7 @@ public class AiController {
                 t.setDaemon(true);
                 return t;
             },
-            new ThreadPoolExecutor.CallerRunsPolicy());
+            new ThreadPoolExecutor.AbortPolicy());
 
     public AiController(AiService aiService) {
         this.aiService = aiService;
@@ -108,7 +109,8 @@ public class AiController {
         String apiKey = RequestContext.getApiKey();
         SseEmitter emitter = new SseEmitter(STREAM_TIMEOUT_MS);
 
-        streamExecutor.execute(() -> {
+        try {
+            streamExecutor.execute(() -> {
             try {
                 AiMessageResponse result = aiService.sendMessageStream(id, request, apiKey,
                         new AiService.StreamCallback() {
@@ -137,7 +139,12 @@ public class AiController {
                 emit(emitter, "error", Map.of("code", 500, "message", "AI 服务异常"));
                 emitter.complete();
             }
-        });
+            });
+        } catch (RejectedExecutionException e) {
+            log.warn("AI stream rejected: executor saturated");
+            emit(emitter, "error", Map.of("code", 503, "message", "当前 AI 请求过多，请稍后重试"));
+            emitter.complete();
+        }
 
         return emitter;
     }

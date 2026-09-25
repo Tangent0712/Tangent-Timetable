@@ -4,7 +4,6 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.timetable.dto.ExamRequest;
 import com.timetable.entity.Exam;
 import com.timetable.entity.Schedule;
-import com.timetable.entity.Todo;
 import com.timetable.exception.BusinessException;
 import com.timetable.mapper.ExamMapper;
 import com.timetable.mapper.ScheduleMapper;
