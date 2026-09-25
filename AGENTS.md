@@ -13,8 +13,8 @@
 - **架构说明**: `docs/ARCHITECTURE.md`
 - **用户手册**: `docs/USER_MANUAL.md`
 - **iPad 小组件**: `docs/IPAD_WEBVIEW_WIDGET.md`
-- **生产环境**: https://todo.tangent0712.top （部署见 `docs/DEPLOYMENT.md`）
-- **账号与密钥**: `docs/CREDENTIALS.md` ⚠️ 含敏感信息，勿提交到公开仓库
+- **部署**: `docs/DEPLOYMENT.md`
+- **账号与密钥**: 通过环境变量注入（见 `.env.example`），勿提交到仓库
 
 ---
 
@@ -42,8 +42,7 @@ Tangent-Timetable/
 │   ├── ARCHITECTURE.md                     # 架构说明
 │   ├── DEPLOYMENT.md                       # 部署与运维指南
 │   ├── USER_MANUAL.md                      # 用户手册
-│   ├── IPAD_WEBVIEW_WIDGET.md              # iPad WebView 小组件说明
-│   └── CREDENTIALS.md                      # ⚠️ 账号/密钥/密码（勿公开）
+│   └── IPAD_WEBVIEW_WIDGET.md              # iPad WebView 小组件说明
 ├── AGENTS.md                               # 本文件
 ├── backend/                                # Spring Boot 后端
 │   ├── mvnw / .mvn/                        # Maven Wrapper
@@ -328,15 +327,14 @@ Controller → Service (接口) → ServiceImpl → Mapper (MyBatis-Plus)
 |------|------|------|
 | P0 后端核心 | 数据库建表、CRUD API、作息时间表 API | **已完成** |
 | P1 AI 集成 | DeepSeek 解析HTML、自然语言CRUD、多轮对话、流式输出 | **已完成** |
-| P2 Web 前端 | React + Ant Design 课表视图、待办、AI 对话、导入 | **已完成（已上线 https://todo.tangent0712.top）** |
+| P2 Web 前端 | React + Ant Design 课表视图、待办、AI 对话、导入 | **已完成** |
 | P2.5 循环待办 | 每日/每周/每月规则、自动生成、AI 增删改查 | **已完成** |
 | P2.6 自定义循环规则 | Rhino 沙箱脚本引擎 | **已完成** |
 | P2.7 考试记录 | 直接输入起止时间、课表红色块展示、独立考试、自动关联待办、AI 增删改查 | **已完成** |
 | P2.8 前端体验 | 响应式窄屏布局、字体大小设置、用户手册页、作息时间表只读权限 | **已完成** |
 | P2.9 iPad 小组件 | WebView 加载 `/widget` 展示页 + RESTful 接口 | **已完成** |
 
-> **生产部署已完成**：站点 https://todo.tangent0712.top，后端跑在 `<YOUR_SERVER_IP>:8200`。
-> 部署与运维见 `docs/DEPLOYMENT.md`，全部账号/密钥见 `docs/CREDENTIALS.md`（敏感，勿提交）。
+> **已部署上线**：生产环境部署与运维见 `docs/DEPLOYMENT.md`；账号与密钥通过环境变量注入，勿提交到仓库。
 
 ### 待开发事项（TODO）
 

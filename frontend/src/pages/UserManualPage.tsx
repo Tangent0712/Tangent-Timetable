@@ -66,8 +66,8 @@ export default function UserManualPage() {
           <section>
             <Title level={4}>怎么进入</Title>
             <Paragraph>在电脑或手机浏览器打开：</Paragraph>
-            <Paragraph copyable={{ text: 'https://todo.tangent0712.top' }}>
-              <Text code>https://todo.tangent0712.top</Text>
+            <Paragraph copyable={{ text: window.location.origin }}>
+              <Text code>{window.location.origin}</Text>
             </Paragraph>
             <Paragraph>手机也可以直接用，会自动适配成手机版样式。</Paragraph>
           </section>
