@@ -16,6 +16,9 @@ const ACTION_LABELS: Record<string, string> = {
   UPDATE_RECURRING: '修改循环任务',
   DELETE_RECURRING: '删除循环任务',
   TOGGLE_RECURRING: '启用/停用循环任务',
+  CREATE_EXAM: '添加考试',
+  UPDATE_EXAM: '修改考试',
+  DELETE_EXAM: '删除考试',
 }
 
 interface Props {
@@ -23,6 +26,7 @@ interface Props {
   executing: boolean
   onExecute: () => void
   onReject: () => void
+  disabled?: boolean
 }
 
 type Dict = Record<string, unknown>
@@ -35,7 +39,7 @@ interface DiffRow {
   changed: boolean
 }
 
-export default function AiActionCard({ action, executing, onExecute, onReject }: Props) {
+export default function AiActionCard({ action, executing, onExecute, onReject, disabled }: Props) {
   const data = (action.data ?? {}) as Dict
   const pending = action.status === 'PENDING'
   const stale = action.status === 'STALE'
@@ -74,10 +78,10 @@ export default function AiActionCard({ action, executing, onExecute, onReject }:
       extra={
         pending && (
           <Space>
-            <Button size="small" type="primary" loading={executing} onClick={onExecute}>
+            <Button size="small" type="primary" loading={executing} disabled={disabled} onClick={onExecute}>
               确认执行
             </Button>
-            <Button size="small" onClick={onReject}>
+            <Button size="small" disabled={disabled} onClick={onReject}>
               取消
             </Button>
           </Space>
@@ -315,6 +319,70 @@ function renderBody(type: string, data: Dict) {
     )
   }
 
+  if (type === 'CREATE_EXAM') {
+    const exams = (data.exams as Dict[]) ?? []
+    return (
+      <Space direction="vertical" style={{ width: '100%' }} size={8}>
+        {exams.map((e, i) => (
+          <div key={i}>
+            <Typography.Text strong>{str(e.name)}</Typography.Text>
+            <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{examLine(e)}</div>
+          </div>
+        ))}
+      </Space>
+    )
+  }
+
+  if (type === 'UPDATE_EXAM') {
+    const after = (data.exams as Dict[]) ?? []
+    return (
+      <Space direction="vertical" style={{ width: '100%' }} size={12}>
+        {after.map((a, i) => {
+          const b = before.find((x) => x.id === a.id) ?? {}
+          const changedRows = examDiff(b, a).filter((r) => r.changed)
+          return (
+            <div key={i}>
+              <Typography.Text strong>{str(a.name ?? b.name)}</Typography.Text>
+              <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{examLine(a)}</div>
+              {changedRows.length > 0 && (
+                <Table
+                  size="small"
+                  rowKey="key"
+                  columns={DIFF_COLUMNS}
+                  dataSource={changedRows}
+                  pagination={false}
+                  style={{ marginTop: 6 }}
+                />
+              )}
+            </div>
+          )
+        })}
+      </Space>
+    )
+  }
+
+  if (type === 'DELETE_EXAM') {
+    if (before.length > 0) {
+      return (
+        <Space direction="vertical" style={{ width: '100%' }} size={8}>
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            将删除以下考试记录：
+          </Typography.Text>
+          {before.map((b, i) => (
+            <div key={i}>
+              <Typography.Text delete strong>
+                {str(b.name)}
+              </Typography.Text>
+              <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{examLine(b)}</div>
+            </div>
+          ))}
+        </Space>
+      )
+    }
+    const ids = data.examIds as unknown[] | undefined
+    if (Array.isArray(ids)) return <span>目标 ID：{ids.join(', ')}</span>
+  }
+
   // DELETE_COURSE / DELETE_TODO / TOGGLE_TODO：展示将被影响的原始记录
   if (before.length > 0) {
     return (
@@ -381,6 +449,33 @@ function courseLine(c: Dict): string {
   if (c.location) parts.push(String(c.location))
   if (c.teacher) parts.push(String(c.teacher))
   return parts.join(' · ')
+}
+
+function timeStr(v: unknown): string {
+  if (v === null || v === undefined || v === '') return '未指定'
+  return String(v).slice(0, 5)
+}
+
+function examLine(e: Dict): string {
+  const parts = [`日期 ${str(e.examDate)}`, `时间 ${timeStr(e.startTime)}-${timeStr(e.endTime)}`]
+  if (e.location) parts.push(String(e.location))
+  return parts.join(' · ')
+}
+
+function examDiff(b: Dict, a: Dict): DiffRow[] {
+  const rows: [string, string, string][] = [
+    ['考试名', str(b.name), str(a.name)],
+    ['日期', str(b.examDate), str(a.examDate)],
+    ['时间', `${timeStr(b.startTime)}-${timeStr(b.endTime)}`, `${timeStr(a.startTime)}-${timeStr(a.endTime)}`],
+    ['地点', str(b.location), str(a.location)],
+  ]
+  return rows.map(([field, before, after]) => ({
+    key: field,
+    field,
+    before,
+    after,
+    changed: before !== after,
+  }))
 }
 
 function dayStr(v: unknown): string {

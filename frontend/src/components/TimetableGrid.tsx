@@ -1,29 +1,42 @@
 import { useMemo } from 'react'
 import { Empty, Tooltip } from 'antd'
 import { WarningFilled } from '@ant-design/icons'
-import type { Course, PeriodConfig } from '../types'
+import type { Course, Exam, PeriodConfig } from '../types'
 import { courseColor } from '../utils/color'
 import { WEEK_DAY_NAMES, dateOfWeekDay, dayjs, formatWeeks } from '../utils/schedule'
 
 interface Props {
   courses: Course[]
+  exams?: Exam[]
   periods: PeriodConfig[]
   week: number
   semesterStart: string | null
   onCourseClick: (course: Course) => void
+  onExamClick?: (exam: Exam) => void
   onEmptyClick: (dayOfWeek: number, period: number) => void
 }
 
 interface Placed {
-  /** 实际展示（生效）的课程 */
-  course: Course
+  /** 实际展示（生效）的课程或独立考试 */
+  item: GridItem
   span: number
-  /** 与之冲突、被隐藏的课程 */
-  conflicts: Course[]
+  /** 与之冲突、被隐藏的项目 */
+  conflicts: GridItem[]
 }
 
-/** 判断两门课的时间段是否重叠 */
-function overlaps(a: Course, b: Course): boolean {
+/** 网格里的占据单元：课程，或课表外的独立考试（courseId 为空） */
+interface GridItem {
+  kind: 'course' | 'exam'
+  id: number
+  dayOfWeek: number
+  startPeriod: number
+  endPeriod: number
+  course?: Course
+  exam?: Exam
+}
+
+/** 判断两个单元的时间段是否重叠 */
+function overlaps(a: GridItem, b: GridItem): boolean {
   return (
     a.dayOfWeek === b.dayOfWeek &&
     a.startPeriod <= b.endPeriod &&
@@ -33,25 +46,25 @@ function overlaps(a: Course, b: Course): boolean {
 
 /**
  * 冲突处理：同一时段重叠的课程不并排显示（那会把后面的课挤走），
- * 而是选定其中一门作为「生效课程」展示，其余记录为冲突项，
+ * 而是选定其中一门作为「生效」展示，其余记录为冲突项，
  * 在该格子上以角标提示，点击可查看全部冲突课程。
  *
- * 选取规则：先按开始节次，再按课程 id，保证稳定且可预测。
+ * 选取规则：先按开始节次，再按 id，保证稳定且可预测。
  */
-function resolveConflicts(courses: Course[]): Placed[] {
-  const sorted = [...courses].sort(
+function resolveConflicts(items: GridItem[]): Placed[] {
+  const sorted = [...items].sort(
     (a, b) => a.startPeriod - b.startPeriod || a.id - b.id,
   )
   const result: Placed[] = []
 
-  for (const course of sorted) {
-    const existing = result.find((p) => overlaps(p.course, course))
+  for (const item of sorted) {
+    const existing = result.find((p) => overlaps(p.item, item))
     if (existing) {
-      existing.conflicts.push(course)
+      existing.conflicts.push(item)
     } else {
       result.push({
-        course,
-        span: Math.max(1, course.endPeriod - course.startPeriod + 1),
+        item,
+        span: Math.max(1, item.endPeriod - item.startPeriod + 1),
         conflicts: [],
       })
     }
@@ -59,12 +72,33 @@ function resolveConflicts(courses: Course[]): Placed[] {
   return result
 }
 
+/** 独立考试起止时间 → 覆盖的节次区间（近似对齐到作息节次） */
+function examPeriods(exam: Exam, periodList: PeriodConfig[]): { start: number; end: number } {
+  const s = exam.startTime
+  const e = exam.endTime
+  let start = periodList[0]?.periodNumber ?? 1
+  let end = periodList[periodList.length - 1]?.periodNumber ?? 1
+  for (const p of periodList) {
+    if (p.endTime >= s) {
+      start = p.periodNumber
+      break
+    }
+  }
+  for (const p of periodList) {
+    if (p.startTime < e) end = p.periodNumber
+  }
+  if (end < start) end = start
+  return { start, end }
+}
+
 export default function TimetableGrid({
   courses,
+  exams = [],
   periods,
   week,
   semesterStart,
   onCourseClick,
+  onExamClick,
   onEmptyClick,
 }: Props) {
   const periodList = useMemo(
@@ -72,31 +106,66 @@ export default function TimetableGrid({
     [periods],
   )
 
+  /**
+   * 所有考试（含关联课程的与独立考试）都像独立考试一样：
+   * 在考试日期当天、按其起止时间对齐到的节次区间，单独占一格红色块展示。
+   */
+  const examItems = useMemo<GridItem[]>(() => {
+    if (!semesterStart) return []
+    const items: GridItem[] = []
+    for (const exam of exams) {
+      const dayOfWeek = dayjs(exam.examDate).day() === 0 ? 7 : dayjs(exam.examDate).day()
+      const dateStr = dateOfWeekDay(semesterStart, week, dayOfWeek).format('YYYY-MM-DD')
+      if (dateStr !== exam.examDate) continue
+      const { start, end } = examPeriods(exam, periodList)
+      items.push({
+        kind: 'exam',
+        id: exam.id,
+        dayOfWeek,
+        startPeriod: start,
+        endPeriod: end,
+        exam,
+      })
+    }
+    return items
+  }, [exams, semesterStart, week, periodList])
+
   const { cellMap, occupied } = useMemo(() => {
     const map = new Map<string, Placed>()
     const taken = new Set<string>()
 
     // 只展示本周有课的记录；「全部课程」由 CourseListView 以列表呈现
-    const visible = courses.filter((c) => c.weeks?.includes(week))
+    const visible: GridItem[] = courses
+      .filter((c) => c.weeks?.includes(week))
+      .map((c) => ({
+        kind: 'course' as const,
+        id: c.id,
+        dayOfWeek: c.dayOfWeek,
+        startPeriod: c.startPeriod,
+        endPeriod: c.endPeriod,
+        course: c,
+      }))
+
+    const allItems = [...visible, ...examItems]
 
     // 按天分组后逐天解决冲突
     for (let day = 1; day <= 7; day++) {
-      const dayCourses = visible.filter((c) => c.dayOfWeek === day)
-      for (const placed of resolveConflicts(dayCourses)) {
-        map.set(`${day}-${placed.course.startPeriod}`, placed)
-        for (let p = placed.course.startPeriod + 1; p <= placed.course.endPeriod; p++) {
+      const dayItems = allItems.filter((i) => i.dayOfWeek === day)
+      for (const placed of resolveConflicts(dayItems)) {
+        map.set(`${day}-${placed.item.startPeriod}`, placed)
+        for (let p = placed.item.startPeriod + 1; p <= placed.item.endPeriod; p++) {
           taken.add(`${day}-${p}`)
         }
-        // 被隐藏的冲突课程占用的格子也要标记，避免出现空洞可点击
+        // 被隐藏的冲突项占用的格子也要标记，避免出现空洞可点击
         for (const c of placed.conflicts) {
           for (let p = c.startPeriod; p <= c.endPeriod; p++) {
-            if (p !== placed.course.startPeriod) taken.add(`${day}-${p}`)
+            if (p !== placed.item.startPeriod) taken.add(`${day}-${p}`)
           }
         }
       }
     }
     return { cellMap: map, occupied: taken }
-  }, [courses, week])
+  }, [courses, examItems, week])
 
   /**
    * 时段分界线：上午 / 下午 / 晚上 之间加粗分隔。
@@ -151,11 +220,53 @@ export default function TimetableGrid({
       const placed = cellMap.get(key)
 
       if (placed) {
-        const { course, span, conflicts } = placed
-        const color = courseColor(course.name)
+        const { item, span, conflicts } = placed
         const hasConflict = conflicts.length > 0
-        // 跨节课程按其结束节次判断是否压在分界线上
-        const spanDiv = dividerPeriods.has(course.endPeriod) ? ' tt-divider' : ''
+        const spanDiv = dividerPeriods.has(item.endPeriod) ? ' tt-divider' : ''
+
+        // 考试块（含关联课程与独立考试）单独占一格展示
+        if (item.kind === 'exam') {
+          const exam = item.exam!
+          cells.push(
+            <div
+              key={`e-${key}`}
+              className={`tt-cell${spanDiv}`}
+              style={{ gridRow: `span ${span}` }}
+            >
+              <Tooltip
+                title={
+                  <div>
+                    <div>{exam.name}</div>
+                    <div>日期:{exam.examDate}</div>
+                    <div>时间:{exam.startTime?.slice(0, 5)}-{exam.endTime?.slice(0, 5)}</div>
+                    <div>地点:{exam.location || '未指定'}</div>
+                  </div>
+                }
+              >
+                <div
+                  className="course-block exam-block"
+                  style={{ height: '100%' }}
+                  onClick={() => onExamClick?.(exam)}
+                >
+                  <div className="course-block-exam-tag">考</div>
+                  <div className="course-block-name">{exam.name}</div>
+                  <div className="course-block-exam-time">
+                    <span>{exam.startTime?.slice(0, 5)}</span>
+                    <span>{exam.endTime?.slice(0, 5)}</span>
+                  </div>
+                  {exam.location && (
+                    <div className="course-block-meta">{exam.location}</div>
+                  )}
+                </div>
+              </Tooltip>
+            </div>,
+          )
+          continue
+        }
+
+        // 课程块
+        const course = item.course!
+        const color = courseColor(course.name)
         cells.push(
           <div
             key={`c-${key}`}
@@ -174,14 +285,18 @@ export default function TimetableGrid({
                   <div>周次：{formatWeeks(course.weeks)}</div>
                   {hasConflict && (
                     <div style={{ marginTop: 6, borderTop: '1px solid #595959', paddingTop: 6 }}>
-                      <div>⚠ 此时段有 {conflicts.length} 门课冲突（未显示）：</div>
+                      <div>⚠ 此时段有 {conflicts.length} 项冲突（未显示）：</div>
                       {conflicts.map((c) => (
                         <div key={c.id}>
-                          · {c.name}（第 {c.startPeriod}-{c.endPeriod} 节
-                          {c.location ? `，${c.location}` : ''}）
+                          · {c.kind === 'exam' ? `考试 ${c.exam?.name}` : c.course?.name}（第{' '}
+                          {c.startPeriod}-{c.endPeriod} 节
+                          {c.kind === 'course' && c.course?.location
+                            ? `，${c.course.location}`
+                            : ''}
+                          ）
                         </div>
                       ))}
-                      <div style={{ marginTop: 4 }}>以上课程不会显示在课表中，请调整或删除。</div>
+                      <div style={{ marginTop: 4 }}>以上内容不会显示在课表中，请调整或删除。</div>
                     </div>
                   )}
                 </div>

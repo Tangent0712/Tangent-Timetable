@@ -370,16 +370,18 @@ Controller → Service (接口) → ServiceImpl → Mapper (MyBatis-Plus)
 | P2.6 自定义循环规则 | Rhino 沙箱脚本引擎 | **已完成** |
 | P2.7 考试记录 | 直接输入起止时间、课表红色块展示、独立考试、自动关联待办、AI 增删改查 | **已完成** |
 | P2.8 前端体验 | 响应式窄屏布局、字体大小设置、用户手册页、作息时间表只读权限 | **已完成** |
-| P3 Android | 课表查看、待办查看、同步 | **已完成** |
-| P4 Android 小组件 | Glance 4x6 Widget、DDL倒计时 | **已完成** |
-| P5 Android 灵动岛 | FocusNotification + Shizuku + LiveUpdate | **已完成** |
+| P3 Android | 课表查看、待办查看、同步 | *⚠️ 代码骨架在，实测有严重问题，需返工* |
+| P4 Android 小组件 | Glance 4x6 Widget、DDL倒计时 | *⚠️ 代码在，未真机充分验证* |
+| P5 Android 灵动岛 | FocusNotification + Shizuku + LiveUpdate | *⚠️ 代码在，需真机 + Shizuku 验证* |
 | P6 Mac 小组件 | SwiftUI Notification Center Widget | *未开始* |
 
 > **生产部署已完成**：站点 https://todo.tangent0712.top，后端跑在 <REDACTED_SERVER_IP>:8200。
 > 部署与运维见 `docs/DEPLOYMENT.md`，全部账号/密钥见 `docs/CREDENTIALS.md`（敏感，勿提交）。
 >
-> **Android 客户端**：`android/`，Gradle 8.13 Wrapper + Kotlin 2.2 + AGP 8.7.3，
-> 依赖国内镜像（Aliyun）替代被墙的 Maven Central。构建：`cd android && ./gradlew assembleDebug`。
+> **⚠️ Android 客户端状态（2026-08-08）**：`android/` 代码结构齐全（Gradle 8.13 Wrapper +
+> Kotlin 2.2 + AGP 8.7.3，Aliyun 镜像），`assembleDebug` 能过，但**用户实测报 4 个硬性问题
+> （顶栏进状态栏、圆形控件方形背景、作息表未加载、登录报 JSON 格式非法），
+> 当前不可用**。接手前**务必先读 `docs/ANDROID_HANDOFF.md`**，里面记录了全部问题根因与修复方向。
 
 ### 待开发事项（TODO）
 

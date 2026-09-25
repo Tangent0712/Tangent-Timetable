@@ -24,6 +24,7 @@ import {
   EditOutlined,
   PlusOutlined,
   RetweetOutlined,
+  ScheduleOutlined,
 } from '@ant-design/icons'
 import RecurringTodoPanel from '../components/RecurringTodoPanel'
 import type { Dayjs } from 'dayjs'
@@ -211,6 +212,13 @@ export default function TodosPage() {
                         >
                           <Tag icon={<RetweetOutlined />} color="blue">
                             循环
+                          </Tag>
+                        </Tooltip>
+                      )}
+                      {todo.examId !== null && (
+                        <Tooltip title="来自考试：ddl=考试开始时间，考试结束后自动完成">
+                          <Tag icon={<ScheduleOutlined />} color="red">
+                            考试
                           </Tag>
                         </Tooltip>
                       )}

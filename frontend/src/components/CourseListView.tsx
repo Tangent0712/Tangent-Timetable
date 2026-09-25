@@ -1,35 +1,33 @@
 import { useMemo, useState } from 'react'
-import { Button, Card, Input, Popconfirm, Space, Table, Tag, Typography } from 'antd'
-import type { ColumnsType } from 'antd/es/table'
+import {
+  Button,
+  Card,
+  Empty,
+  Input,
+  Popconfirm,
+  Space,
+  Tag,
+  Typography,
+} from 'antd'
 import { DeleteOutlined, EditOutlined, SearchOutlined } from '@ant-design/icons'
-import type { Course, PeriodConfig } from '../types'
+import type { Course } from '../types'
 import { courseColor } from '../utils/color'
-import { WEEK_DAY_NAMES, formatWeeks, weekDayName } from '../utils/schedule'
+import { formatWeeks, weekDayName } from '../utils/schedule'
 
 interface Props {
   courses: Course[]
-  periods: PeriodConfig[]
   onEdit: (course: Course) => void
   onDelete: (course: Course) => void
 }
 
 /**
- * 全部课程视图。
+ * 全部课程视图（卡片式）。
  *
- * 不渲染到时间网格上：单双周错开的课程在网格里占同一格却并不真正冲突，
- * 网格无法表达这种差异。因此这里直接把数据库记录逐条列出，
- * 完整展示星期、节次、周次、地点、教师，信息无损。
+ * 不用表格，避免窄屏下左右滚动：卡片网格随容器宽度自动换列，
+ * 每张卡片完整展示星期、节次、周次、地点、教师。
  */
-export default function CourseListView({ courses, periods, onEdit, onDelete }: Props) {
+export default function CourseListView({ courses, onEdit, onDelete }: Props) {
   const [keyword, setKeyword] = useState('')
-
-  const periodTimeMap = useMemo(() => {
-    const map = new Map<number, string>()
-    periods.forEach((p) =>
-      map.set(p.periodNumber, `${p.startTime?.slice(0, 5)}-${p.endTime?.slice(0, 5)}`),
-    )
-    return map
-  }, [periods])
 
   const data = useMemo(() => {
     const kw = keyword.trim().toLowerCase()
@@ -45,114 +43,19 @@ export default function CourseListView({ courses, periods, onEdit, onDelete }: P
     )
   }, [courses, keyword])
 
-  const timeRange = (c: Course) => {
-    const start = periodTimeMap.get(c.startPeriod)?.split('-')[0]
-    const end = periodTimeMap.get(c.endPeriod)?.split('-')[1]
-    return start && end ? `${start}-${end}` : '—'
-  }
-
-  const columns: ColumnsType<Course> = [
-    {
-      title: '课程名称',
-      dataIndex: 'name',
-      width: 200,
-      render: (name: string) => {
-        const color = courseColor(name)
-        return (
-          <Space size={6}>
-            <span
-              style={{
-                display: 'inline-block',
-                width: 3,
-                height: 16,
-                background: color.border,
-                borderRadius: 2,
-              }}
-            />
-            <Typography.Text strong>{name}</Typography.Text>
-          </Space>
-        )
-      },
-    },
-    {
-      title: '星期',
-      dataIndex: 'dayOfWeek',
-      width: 80,
-      filters: WEEK_DAY_NAMES.map((n, i) => ({ text: n, value: i + 1 })),
-      onFilter: (value, record) => record.dayOfWeek === value,
-      render: (d: number) => weekDayName(d),
-    },
-    {
-      title: '节次',
-      width: 100,
-      render: (_, c) => `第 ${c.startPeriod}-${c.endPeriod} 节`,
-    },
-    {
-      title: '时间',
-      width: 120,
-      render: (_, c) => (
-        <Typography.Text type="secondary">{timeRange(c)}</Typography.Text>
-      ),
-    },
-    {
-      title: '周次',
-      dataIndex: 'weeks',
-      render: (weeks: number[]) => {
-        if (!weeks || weeks.length === 0) return <span className="text-muted">—</span>
-        const odd = weeks.every((w) => w % 2 === 1)
-        const even = weeks.every((w) => w % 2 === 0)
-        return (
-          <Space size={4} wrap>
-            <span>{formatWeeks(weeks)}</span>
-            {weeks.length > 1 && odd && <Tag color="orange">单周</Tag>}
-            {weeks.length > 1 && even && <Tag color="cyan">双周</Tag>}
-            <Typography.Text type="secondary">共 {weeks.length} 周</Typography.Text>
-          </Space>
-        )
-      },
-    },
-    {
-      title: '地点',
-      dataIndex: 'location',
-      width: 150,
-      render: (v: string | null) => v || <span className="text-muted">未指定</span>,
-    },
-    {
-      title: '教师',
-      dataIndex: 'teacher',
-      width: 110,
-      render: (v: string | null) => v || <span className="text-muted">未指定</span>,
-    },
-    {
-      title: '操作',
-      width: 90,
-      fixed: 'right',
-      render: (_, course) => (
-        <Space size={0}>
-          <Button type="text" icon={<EditOutlined />} onClick={() => onEdit(course)} />
-          <Popconfirm
-            title="确定删除这条课程吗？"
-            okText="删除"
-            cancelText="取消"
-            onConfirm={() => onDelete(course)}
-          >
-            <Button type="text" danger icon={<DeleteOutlined />} />
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ]
-
   return (
     <Card size="small">
-      <Space style={{ marginBottom: 12, justifyContent: 'space-between', width: '100%' }}>
+      <Space
+        style={{ marginBottom: 12, justifyContent: 'space-between', width: '100%' }}
+        wrap
+      >
         <Input
           prefix={<SearchOutlined />}
           placeholder="搜索课程名 / 地点 / 教师"
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
           allowClear
-          style={{ width: 260 }}
+          style={{ maxWidth: 320, flex: 1 }}
         />
         <Typography.Text type="secondary">
           共 {data.length} 条上课记录
@@ -160,15 +63,63 @@ export default function CourseListView({ courses, periods, onEdit, onDelete }: P
         </Typography.Text>
       </Space>
 
-      <Table
-        size="small"
-        rowKey="id"
-        columns={columns}
-        dataSource={data}
-        pagination={false}
-        scroll={{ x: 900 }}
-        locale={{ emptyText: keyword ? '没有匹配的课程' : '该课表还没有课程' }}
-      />
+      {data.length === 0 ? (
+        <Empty description={keyword ? '没有匹配的课程' : '该课表还没有课程'} />
+      ) : (
+        <div className="course-card-grid">
+          {data.map((c) => {
+            const color = courseColor(c.name)
+            const odd = c.weeks.length > 1 && c.weeks.every((w) => w % 2 === 1)
+            const even = c.weeks.length > 1 && c.weeks.every((w) => w % 2 === 0)
+            return (
+              <div key={c.id} className="course-card">
+                <div className="course-card-head">
+                  <span className="course-card-bar" style={{ background: color.border }} />
+                  <Typography.Text strong className="course-card-name">
+                    {c.name}
+                  </Typography.Text>
+                </div>
+                <div className="course-card-meta">
+                  <Tag>{weekDayName(c.dayOfWeek)}</Tag>
+                  <span>第 {c.startPeriod}-{c.endPeriod} 节</span>
+                </div>
+                <div className="course-card-line">
+                  <span className="course-card-label">周次</span>
+                  <span style={{ wordBreak: 'break-word' }}>{formatWeeks(c.weeks)}</span>
+                  {odd && <Tag color="orange">单周</Tag>}
+                  {even && <Tag color="cyan">双周</Tag>}
+                  <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+                    {c.weeks.length}周
+                  </Typography.Text>
+                </div>
+                <div className="course-card-line">
+                  <span className="course-card-label">地点</span>
+                  {c.location || <span className="text-muted">未指定</span>}
+                </div>
+                <div className="course-card-line">
+                  <span className="course-card-label">教师</span>
+                  {c.teacher || <span className="text-muted">未指定</span>}
+                </div>
+                <div className="course-card-actions">
+                  <Button size="small" icon={<EditOutlined />} onClick={() => onEdit(c)}>
+                    编辑
+                  </Button>
+                  <Popconfirm
+                    title="确定删除这条课程吗？"
+                    okText="删除"
+                    cancelText="取消"
+                    onConfirm={() => onDelete(c)}
+                  >
+                    <Button size="small" danger icon={<DeleteOutlined />}>
+                      删除
+                    </Button>
+                  </Popconfirm>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
     </Card>
   )
 }

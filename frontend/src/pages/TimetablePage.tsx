@@ -15,6 +15,7 @@ import {
   PlusOutlined,
   RightOutlined,
   SettingOutlined,
+  TrophyOutlined,
 } from '@ant-design/icons'
 import TimetableGrid from '../components/TimetableGrid'
 import CourseListView from '../components/CourseListView'
@@ -22,9 +23,10 @@ import CourseFormModal from '../components/CourseFormModal'
 import ScheduleManagerModal from '../components/ScheduleManagerModal'
 import ScheduleCreateModal from '../components/ScheduleCreateModal'
 import ImportHtmlModal from '../components/ImportHtmlModal'
-import { aiApi, courseApi, scheduleApi } from '../api'
+import ExamManagerModal from '../components/ExamManagerModal'
+import { aiApi, courseApi, examApi, scheduleApi } from '../api'
 import { useApp } from '../store/AppContext'
-import type { Course, CoursePayload, Schedule } from '../types'
+import type { Course, CoursePayload, Exam, ExamPayload, Schedule } from '../types'
 import { currentWeekOf, totalWeeks } from '../utils/schedule'
 
 export default function TimetablePage() {
@@ -33,8 +35,10 @@ export default function TimetablePage() {
     activeScheduleId,
     schedules,
     courses,
+    exams,
     periods,
     refreshCourses,
+    refreshExams,
     refreshSchedules,
   } = useApp()
 
@@ -49,6 +53,8 @@ export default function TimetablePage() {
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
+  const [examModalOpen, setExamModalOpen] = useState(false)
+  const [examSaving, setExamSaving] = useState(false)
   const [aiEnabled, setAiEnabled] = useState(false)
 
   const total = useMemo(
@@ -134,6 +140,44 @@ export default function TimetablePage() {
     message.success('课表已删除')
     await refreshSchedules()
     await refreshCourses()
+    await refreshExams()
+  }
+
+  const createExam = async (payload: ExamPayload) => {
+    if (!activeScheduleId) return
+    setExamSaving(true)
+    try {
+      await examApi.create(activeScheduleId, payload)
+      message.success('考试已添加')
+      await refreshExams()
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '保存失败')
+    } finally {
+      setExamSaving(false)
+    }
+  }
+
+  const updateExam = async (id: number, payload: ExamPayload) => {
+    setExamSaving(true)
+    try {
+      await examApi.update(id, payload)
+      message.success('考试已更新')
+      await refreshExams()
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '保存失败')
+    } finally {
+      setExamSaving(false)
+    }
+  }
+
+  const deleteExam = async (exam: Exam) => {
+    try {
+      await examApi.remove(exam.id)
+      message.success('考试已删除')
+      await refreshExams()
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '删除失败')
+    }
   }
 
   if (schedules.length === 0) {
@@ -164,7 +208,7 @@ export default function TimetablePage() {
   }
 
   return (
-    <>
+    <div className="tt-page">
       <div className="page-header">
         <Space size={12} wrap>
           <Typography.Title level={4} style={{ margin: 0 }}>
@@ -210,6 +254,9 @@ export default function TimetablePage() {
           <Button icon={<PlusOutlined />} type="primary" onClick={() => openCreate()}>
             添加课程
           </Button>
+          <Button icon={<TrophyOutlined />} onClick={() => setExamModalOpen(true)}>
+            考试管理
+          </Button>
           <Button icon={<ImportOutlined />} onClick={() => setImportOpen(true)}>
             导入课表
           </Button>
@@ -220,23 +267,28 @@ export default function TimetablePage() {
       </div>
 
       {viewMode === 'week' ? (
-        <TimetableGrid
-          courses={courses}
-          periods={periods}
-          week={week}
-          semesterStart={activeSchedule?.periodStartDate ?? null}
-          onCourseClick={(course) =>
-            setCourseModal({ open: true, course, defaults: null })
-          }
-          onEmptyClick={(day, period) => openCreate(day, period)}
-        />
+        <div className="tt-scroll">
+          <TimetableGrid
+            courses={courses}
+            exams={exams}
+            periods={periods}
+            week={week}
+            semesterStart={activeSchedule?.periodStartDate ?? null}
+            onCourseClick={(course) =>
+              setCourseModal({ open: true, course, defaults: null })
+            }
+            onExamClick={() => setExamModalOpen(true)}
+            onEmptyClick={(day, period) => openCreate(day, period)}
+          />
+        </div>
       ) : (
-        <CourseListView
-          courses={courses}
-          periods={periods}
-          onEdit={(course) => setCourseModal({ open: true, course, defaults: null })}
-          onDelete={deleteCourse}
-        />
+        <div className="tt-list">
+          <CourseListView
+            courses={courses}
+            onEdit={(course) => setCourseModal({ open: true, course, defaults: null })}
+            onDelete={deleteCourse}
+          />
+        </div>
       )}
 
       <CourseFormModal
@@ -275,6 +327,16 @@ export default function TimetablePage() {
           await refreshCourses()
         }}
       />
-    </>
+
+      <ExamManagerModal
+        open={examModalOpen}
+        exams={exams}
+        saving={examSaving}
+        onCancel={() => setExamModalOpen(false)}
+        onCreate={createExam}
+        onUpdate={updateExam}
+        onDelete={deleteExam}
+      />
+    </div>
   )
 }

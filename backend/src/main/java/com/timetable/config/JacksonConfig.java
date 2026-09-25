@@ -11,6 +11,7 @@ import org.springframework.context.annotation.Configuration;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 
 /**
@@ -59,6 +60,29 @@ public class JacksonConfig {
         // 序列化统一输出 ISO 格式，保证各端解析一致
         module.addSerializer(LocalDateTime.class,
                 new LocalDateTimeSerializer(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")));
+
+        // 宽松的 LocalTime 反序列化：同时接受 "HH:mm" 与 "HH:mm:ss"
+        module.addDeserializer(LocalTime.class, new JsonDeserializer<>() {
+            @Override
+            public LocalTime deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
+                String value = p.getText();
+                if (value == null || value.isBlank()) {
+                    return null;
+                }
+                String trimmed = value.trim();
+                try {
+                    return LocalTime.parse(trimmed, DateTimeFormatter.ofPattern("HH:mm"));
+                } catch (Exception ignored) {
+                    // 尝试完整秒格式
+                }
+                try {
+                    return LocalTime.parse(trimmed, DateTimeFormatter.ofPattern("HH:mm:ss"));
+                } catch (Exception ignored) {
+                    // 落到统一报错
+                }
+                throw new IOException("无法解析时间: " + value);
+            }
+        });
         return module;
     }
 }

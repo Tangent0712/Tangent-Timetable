@@ -111,6 +111,13 @@ INSERT IGNORE INTO api_key (api_key, label, avatar_url) VALUES ('tt_xxx', '用�
 
 > 后端 `application-prod.yml` 配置了 `sql.init.mode=always`，schema.sql / data.sql 幂等，启动会自动建表并插入默认作息与 demo-key。已存在的表/数据用 `INSERT IGNORE` / `CREATE IF NOT EXISTS`，不会重复。
 
+> ⚠️ **schema 变更需手动 ALTER**：`CREATE TABLE IF NOT EXISTS` 与 `CREATE ... IF NOT EXISTS`
+> 只会新建**不存在的表**，**不会给已存在的表补列**。因此每次改 `schema.sql` 后，生产库需手动 ALTER。
+> 历史手动 ALTER 示例：
+> - `ALTER TABLE todo ADD COLUMN exam_id BIGINT NULL, ADD INDEX idx_todo_exam (exam_id);`
+> - 移除考试课程关联：`ALTER TABLE exam DROP FOREIGN KEY exam_ibfk_2; ALTER TABLE exam DROP INDEX idx_exam_course; ALTER TABLE exam DROP COLUMN course_id;`
+> 改 schema 前先 `SHOW CREATE TABLE <表名>` 确认外键/索引名再执行。
+
 ---
 
 ## 6. HTTPS 证书

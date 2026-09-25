@@ -15,6 +15,8 @@ public class Todo {
     private LocalDateTime ddl;
     private Boolean completed;
     private Long recurringId;
+    /** 非空表示由某条考试自动关联生成的待办（ddl=考试开始，考试结束后自动完成） */
+    private Long examId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -30,6 +32,8 @@ public class Todo {
     public void setCompleted(Boolean completed) { this.completed = completed; }
     public Long getRecurringId() { return recurringId; }
     public void setRecurringId(Long recurringId) { this.recurringId = recurringId; }
+    public Long getExamId() { return examId; }
+    public void setExamId(Long examId) { this.examId = examId; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }

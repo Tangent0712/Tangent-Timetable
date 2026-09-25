@@ -40,6 +40,20 @@ CREATE TABLE IF NOT EXISTS course (
     INDEX idx_schedule_day (schedule_id, day_of_week)
 );
 
+CREATE TABLE IF NOT EXISTS exam (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    schedule_id BIGINT NOT NULL,
+    name VARCHAR(200) NOT NULL,
+    location VARCHAR(200),
+    exam_date DATE NOT NULL,
+    start_time TIME NOT NULL,
+    end_time TIME NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (schedule_id) REFERENCES schedule(id) ON DELETE CASCADE,
+    INDEX idx_exam_schedule (schedule_id)
+);
+
 CREATE TABLE IF NOT EXISTS todo (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     api_key VARCHAR(64) NOT NULL,
@@ -47,13 +61,15 @@ CREATE TABLE IF NOT EXISTS todo (
     ddl DATETIME NOT NULL,
     completed BOOLEAN DEFAULT FALSE,
     recurring_id BIGINT,
+    exam_id BIGINT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (api_key) REFERENCES api_key(api_key) ON DELETE CASCADE,
     INDEX idx_api_key (api_key),
     INDEX idx_ddl (ddl),
     INDEX idx_completed (completed),
-    INDEX idx_todo_recurring (recurring_id)
+    INDEX idx_todo_recurring (recurring_id),
+    INDEX idx_todo_exam (exam_id)
 );
 
 CREATE TABLE IF NOT EXISTS ai_conversation (

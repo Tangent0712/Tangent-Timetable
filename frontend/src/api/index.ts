@@ -6,6 +6,8 @@ import type {
   AuthVerifyResponse,
   Course,
   CoursePayload,
+  Exam,
+  ExamPayload,
   ParseHtmlResult,
   PeriodConfig,
   RecurringScriptTemplate,
@@ -76,6 +78,16 @@ export const recurringApi = {
       method: 'POST',
       body: { script },
     }),
+}
+
+export const examApi = {
+  listBySchedule: (scheduleId: number) =>
+    request<Exam[]>(`/schedules/${scheduleId}/exams`),
+  create: (scheduleId: number, body: ExamPayload) =>
+    request<Exam>(`/schedules/${scheduleId}/exams`, { method: 'POST', body }),
+  update: (id: number, body: ExamPayload) =>
+    request<Exam>(`/exams/${id}`, { method: 'PUT', body }),
+  remove: (id: number) => request<null>(`/exams/${id}`, { method: 'DELETE' }),
 }
 
 export const periodApi = {

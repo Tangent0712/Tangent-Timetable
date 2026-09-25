@@ -148,21 +148,21 @@ export default function CourseFormModal({
           <Input placeholder="如 高等数学" />
         </Form.Item>
 
-        <Space size={12} style={{ display: 'flex' }}>
-          <Form.Item name="location" label="上课地点" style={{ flex: 1 }}>
+        <Space size={12} wrap style={{ display: 'flex' }}>
+          <Form.Item name="location" label="上课地点" style={{ flex: 1, minWidth: 180 }}>
             <Input placeholder="如 教3-101（可留空）" />
           </Form.Item>
-          <Form.Item name="teacher" label="教师" style={{ flex: 1 }}>
+          <Form.Item name="teacher" label="教师" style={{ flex: 1, minWidth: 180 }}>
             <Input placeholder="如 王老师（可留空）" />
           </Form.Item>
         </Space>
 
-        <Space size={12} style={{ display: 'flex' }}>
+        <Space size={12} wrap style={{ display: 'flex' }}>
           <Form.Item
             name="dayOfWeek"
             label="星期"
             rules={[{ required: true }]}
-            style={{ flex: 1 }}
+            style={{ flex: 1, minWidth: 120 }}
           >
             <Select
               options={WEEK_DAY_NAMES.map((n, i) => ({ value: i + 1, label: n }))}
@@ -172,7 +172,7 @@ export default function CourseFormModal({
             name="startPeriod"
             label="开始节次"
             rules={[{ required: true }]}
-            style={{ flex: 1 }}
+            style={{ flex: 1, minWidth: 120 }}
           >
             <Select options={periodOptions} />
           </Form.Item>
@@ -180,7 +180,7 @@ export default function CourseFormModal({
             name="endPeriod"
             label="结束节次"
             rules={[{ required: true }]}
-            style={{ flex: 1 }}
+            style={{ flex: 1, minWidth: 120 }}
           >
             <Select options={periodOptions} />
           </Form.Item>

@@ -17,8 +17,8 @@ import {
   onUnauthorized,
   setApiKey as persistApiKey,
 } from '../api/client'
-import { authApi, courseApi, periodApi, recurringApi, scheduleApi, todoApi } from '../api'
-import type { Course, PeriodConfig, RecurringTodo, Schedule, Todo } from '../types'
+import { authApi, courseApi, examApi, periodApi, recurringApi, scheduleApi, todoApi } from '../api'
+import type { Course, Exam, PeriodConfig, RecurringTodo, Schedule, Todo } from '../types'
 
 const ACTIVE_SCHEDULE_STORAGE = 'timetable.activeScheduleId'
 const SYNC_INTERVAL_MS = 30_000
@@ -32,6 +32,7 @@ interface AppState {
   activeScheduleId: number | null
   activeSchedule: Schedule | null
   courses: Course[]
+  exams: Exam[]
   todos: Todo[]
   recurringTodos: RecurringTodo[]
   periods: PeriodConfig[]
@@ -41,6 +42,7 @@ interface AppState {
   setActiveScheduleId: (id: number | null) => void
   refreshSchedules: () => Promise<Schedule[]>
   refreshCourses: () => Promise<void>
+  refreshExams: () => Promise<void>
   refreshTodos: () => Promise<void>
   refreshRecurring: () => Promise<void>
   refreshPeriods: () => Promise<void>
@@ -60,6 +62,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return stored ? Number(stored) : null
   })
   const [courses, setCourses] = useState<Course[]>([])
+  const [exams, setExams] = useState<Exam[]>([])
   const [todos, setTodos] = useState<Todo[]>([])
   const [recurringTodos, setRecurringTodos] = useState<RecurringTodo[]>([])
   const [periods, setPeriods] = useState<PeriodConfig[]>([])
@@ -81,6 +84,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setAvatarUrl(null)
     setSchedules([])
     setCourses([])
+    setExams([])
     setTodos([])
     setRecurringTodos([])
     setPeriods([])
@@ -115,6 +119,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setCourses(await courseApi.listBySchedule(id))
   }, [])
 
+  const refreshExams = useCallback(async () => {
+    const id = activeIdRef.current
+    if (id === null) {
+      setExams([])
+      return
+    }
+    setExams(await examApi.listBySchedule(id))
+  }, [])
+
   const refreshTodos = useCallback(async () => {
     setTodos(await todoApi.list())
   }, [])
@@ -133,6 +146,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       await refreshSchedules()
       await Promise.all([
         refreshCourses(),
+        refreshExams(),
         refreshTodos(),
         refreshRecurring(),
         refreshPeriods(),
@@ -140,7 +154,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false)
     }
-  }, [refreshCourses, refreshPeriods, refreshRecurring, refreshSchedules, refreshTodos])
+  }, [refreshCourses, refreshExams, refreshPeriods, refreshRecurring, refreshSchedules, refreshTodos])
 
   const login = useCallback(
     async (key: string) => {
@@ -182,18 +196,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!authed) return
-    refreshCourses().catch((e: Error) => message.error(e.message))
-  }, [authed, activeScheduleId, refreshCourses])
+    Promise.all([refreshCourses(), refreshExams()]).catch((e: Error) => message.error(e.message))
+  }, [authed, activeScheduleId, refreshCourses, refreshExams])
 
   useEffect(() => {
     if (!authed) return
     const timer = window.setInterval(() => {
-      Promise.all([refreshCourses(), refreshTodos(), refreshRecurring()]).catch(() => {
-        /* 静默失败，下次轮询重试 */
-      })
+      Promise.all([refreshCourses(), refreshExams(), refreshTodos(), refreshRecurring()]).catch(
+        () => {
+          /* 静默失败，下次轮询重试 */
+        },
+      )
     }, SYNC_INTERVAL_MS)
     return () => window.clearInterval(timer)
-  }, [authed, refreshCourses, refreshTodos, refreshRecurring])
+  }, [authed, refreshCourses, refreshExams, refreshTodos, refreshRecurring])
 
   const activeSchedule = useMemo(
     () => schedules.find((s) => s.id === activeScheduleId) ?? null,
@@ -209,6 +225,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     activeScheduleId,
     activeSchedule,
     courses,
+    exams,
     todos,
     recurringTodos,
     periods,
@@ -218,6 +235,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setActiveScheduleId,
     refreshSchedules,
     refreshCourses,
+    refreshExams,
     refreshTodos,
     refreshRecurring,
     refreshPeriods,

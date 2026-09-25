@@ -68,4 +68,44 @@ public class TodoServiceImpl implements TodoService {
         todoMapper.updateById(todo);
         return todo;
     }
+
+    @Override
+    public Todo createForExam(Long examId, String title, java.time.LocalDateTime ddl, String apiKey) {
+        Todo todo = new Todo();
+        todo.setApiKey(apiKey);
+        todo.setTitle(title);
+        todo.setDdl(ddl);
+        todo.setCompleted(false);
+        todo.setExamId(examId);
+        todoMapper.insert(todo);
+        return todo;
+    }
+
+    @Override
+    public void updateExamLinked(Long examId, String title, java.time.LocalDateTime ddl, String apiKey) {
+        LambdaQueryWrapper<Todo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Todo::getExamId, examId).eq(Todo::getApiKey, apiKey);
+        for (Todo todo : todoMapper.selectList(wrapper)) {
+            todo.setTitle(title);
+            todo.setDdl(ddl);
+            todoMapper.updateById(todo);
+        }
+    }
+
+    @Override
+    public void deleteByExamId(Long examId, String apiKey) {
+        LambdaQueryWrapper<Todo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Todo::getExamId, examId).eq(Todo::getApiKey, apiKey);
+        todoMapper.delete(wrapper);
+    }
+
+    @Override
+    public void completeByExamId(Long examId) {
+        LambdaQueryWrapper<Todo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Todo::getExamId, examId).eq(Todo::getCompleted, false);
+        for (Todo todo : todoMapper.selectList(wrapper)) {
+            todo.setCompleted(true);
+            todoMapper.updateById(todo);
+        }
+    }
 }

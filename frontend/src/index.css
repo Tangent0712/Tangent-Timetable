@@ -54,7 +54,7 @@ body {
   font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace !important;
   background: var(--bg-main) !important;
   color: var(--text-primary) !important;
-  font-size: 13px;
+  font-size: calc(13px * var(--app-font-scale, 1));
   line-height: 1.5;
 }
 #root { min-height: 100vh; }
@@ -220,7 +220,7 @@ body {
 .ant-modal-header { border-bottom: 2px solid var(--border-dark) !important; }
 .ant-menu-horizontal { border-bottom: none !important; font-family: inherit !important; }
 .ant-segmented { background: var(--bg-sidebar) !important; border-radius: 4px !important; padding: 2px !important; }
-.ant-segmented-item { font-family: inherit !important; font-size: 12px !important; transition: none !important; }
+.ant-segmented-item { font-family: inherit !important; font-size: 12px !important; transition: none !important; color: var(--text-primary) !important; }
 /* antd 的滑动高亮条 thumb 背景默认是白色，需与选中项一致，并去掉滑动过渡实现瞬间切换 */
 .ant-segmented-thumb { background: var(--accent) !important; transition: none !important; }
 .ant-segmented-item-selected {
@@ -263,6 +263,17 @@ body {
 .chat-action-card { margin-top: 10px; max-width: 720px; }
 .chat-input-bar { display: flex; gap: 8px; padding-top: 12px; flex-shrink: 0; }
 
+/* 推荐示例：只读、不可点击，避免误触 */
+.example-chip {
+  font-size: 11px;
+  padding: 2px 8px;
+  border: 1px solid var(--border-light);
+  border-radius: 999px;
+  background: var(--bg-card);
+  user-select: none;
+  cursor: default;
+}
+
 /* ==================== Timetable Grid ==================== */
 .timetable-grid {
   display: grid;
@@ -271,8 +282,91 @@ body {
   background: var(--bg-card);
   border-radius: 4px;
   overflow: hidden;
-  font-size: 11px;
+  font-size: calc(12px * var(--tt-scale, 1));
+  /* 行高自适应撑满容器：表头行 auto，其余节次行均分剩余高度 */
+  height: 100%;
+  grid-template-rows: auto;
+  grid-auto-rows: minmax(calc(48px * var(--tt-scale, 1)), 1fr);
 }
+
+/* 课表主视图占满剩余高度，不留底部空隙 */
+.tt-page {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  gap: 16px;
+}
+.tt-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.tt-list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* ==================== 全部课程卡片式 ==================== */
+.course-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+.course-card {
+  border: 2px solid var(--border-dark);
+  border-radius: 4px;
+  background: var(--bg-card);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+.course-card-head { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.course-card-bar { width: 4px; height: 20px; border-radius: 2px; flex-shrink: 0; }
+.course-card-name {
+  font-size: 13px;
+  line-height: 1.3;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.course-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  flex-wrap: wrap;
+}
+.course-card-line {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.course-card-label {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+.course-card-actions { display: flex; gap: 8px; margin-top: 6px; }
+
+/* ==================== 用户手册 ==================== */
+.manual-page { flex: 1; min-height: 0; overflow: auto; }
+.manual-body { max-width: 820px; margin: 0 auto; }
+.manual-body section { padding: 0 4px; }
+.manual-body h4.ant-typography { margin-bottom: 12px; }
+.manual-body ul, .manual-body ol { padding-left: 20px; }
+.manual-body li { margin-bottom: 6px; line-height: 1.7; }
 .tt-cell {
   border-right: 1px solid var(--border-light);
   border-bottom: 1px solid var(--border-light);
@@ -291,29 +385,30 @@ body {
   align-items: center;
   justify-content: center;
   gap: 2px;
-  min-height: 36px;
-  font-size: 12px;
+  min-height: 44px;
+  font-size: 1.17em;
 }
 .tt-head-today { background: var(--accent); color: var(--text-on-accent); }
-.tt-head-sub { font-size: 10px; opacity: 0.8; font-weight: 400; }
+.tt-head-sub { font-size: 0.857em; opacity: 0.8; font-weight: 400; }
 .tt-period {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   background: var(--bg-sidebar);
-  font-size: 10px;
+  font-size: 1em;
   color: var(--text-secondary);
   gap: 1px;
 }
-.tt-period-num { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+.tt-period-num { font-size: 1.33em; font-weight: 700; color: var(--text-primary); }
+.tt-period span:not(.tt-period-num) { font-size: 0.72em; line-height: 1.1; }
 .tt-cell-empty { cursor: pointer; transition: background 0.1s; }
 .tt-cell-empty:hover { background: var(--bg-main); }
 .tt-divider { border-bottom: 2px solid var(--border-dark) !important; }
 
 .course-block {
   height: 100%;
-  padding: 4px 8px;
+  padding: 8px 8px 4px;
   border-left: 4px solid;
   cursor: pointer;
   display: flex;
@@ -323,8 +418,54 @@ body {
   transition: filter 0.15s;
 }
 .course-block:hover { filter: brightness(0.92); }
-.course-block-name { font-weight: 700; font-size: 12px; line-height: 1.3; }
-.course-block-meta { font-size: 10px; opacity: 0.8; line-height: 1.3; }
+.course-block-name { font-weight: 700; font-size: 1.17em; line-height: 1.3; }
+.course-block-meta { font-size: 1em; opacity: 0.8; line-height: 1.3; }
+.course-block-exam {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  padding: 1px 4px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-dark);
+  border-left: 3px solid var(--accent);
+  border-radius: 2px;
+  line-height: 1.3;
+  cursor: pointer;
+}
+.course-block-exam:hover { filter: brightness(0.92); }
+.course-block-exam-tag {
+  flex-shrink: 0;
+  font-size: 0.92em;
+  font-weight: 700;
+  color: var(--text-on-accent);
+  background: var(--accent);
+  padding: 0 3px;
+  border-radius: 2px;
+}
+.course-block-exam-name { font-size: 1em; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.course-block-exam-time {
+  font-size: 0.92em;
+  opacity: 0.85;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+/* 独立考试块（未关联课程的课表外考试，如 CET / 业余无线电）：
+   与普通课程块样式一致，但颜色固定为红色以示醒目 */
+.exam-block {
+  background: #fff1f0;
+  border-left: 4px solid #ff4d4f;
+}
+.exam-block .course-block-name { color: #cf1322; }
+.exam-block .course-block-meta { color: #cf1322; }
+.exam-block .course-block-exam-tag {
+  background: #ff4d4f;
+  color: #fff;
+}
+.exam-block .course-block-exam-time { color: #cf1322; font-weight: 700; }
+.exam-block:hover { filter: brightness(0.96); }
 .course-conflict-badge {
   position: absolute;
   top: 2px;
@@ -397,4 +538,338 @@ body {
 .ant-tabs-tab:hover .ant-tabs-tab-btn,
 .ant-tabs-tab-btn:hover {
   color: var(--text-primary) !important;
+}
+
+/* ==================== Responsive ==================== */
+/* 抽屉类控件默认隐藏（桌面不需要） */
+.topbar-menu-btn { display: none; }
+.sidebar-backdrop { display: none; }
+.conv-toggle-btn { display: none; }
+.conv-backdrop { display: none; }
+
+/* 窄屏：侧边栏与 AI 对话列表变为左侧抽屉 */
+@media (max-width: 900px) {
+  .topbar-menu-btn { display: flex; }
+
+  .sidebar-backdrop,
+  .conv-backdrop {
+    display: block;
+    position: fixed;
+    inset: 48px 0 24px 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 99;
+  }
+
+  .app-sidebar {
+    position: fixed;
+    top: 48px;
+    bottom: 24px;
+    left: 0;
+    width: 220px;
+    z-index: 100;
+    transform: translateX(-105%);
+    transition: transform 0.2s ease;
+    border-right: 1px solid var(--border-dark);
+    box-shadow: 2px 0 14px rgba(0, 0, 0, 0.35);
+  }
+  .app-sidebar.open { transform: translateX(0); }
+
+  .conv-toggle-btn { display: inline-flex; }
+  .conv-panel {
+    position: fixed;
+    top: 48px;
+    bottom: 24px;
+    left: 0;
+    width: 240px !important;
+    z-index: 110;
+    transform: translateX(-105%);
+    transition: transform 0.2s ease;
+    box-shadow: 2px 0 14px rgba(0, 0, 0, 0.35);
+  }
+  .conv-panel.open { transform: translateX(0); }
+
+  .app-content { padding: 12px; gap: 12px; }
+
+  /* 课表网格：列宽自动收缩（不再强制 min-width），保险起见容器仍可横向滚动 */
+  .tt-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
+}
+
+/* 手机尺寸 */
+@media (max-width: 640px) {
+  .app-topbar { padding: 0 10px; gap: 8px; }
+  .app-topbar-title { font-size: 15px; letter-spacing: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .app-topbar .ant-tag { display: none; }
+
+  .app-content { padding: 10px; gap: 10px; }
+
+  .page-header { flex-direction: column; align-items: stretch; gap: 8px; }
+  .page-header h4 { font-size: 15px !important; }
+
+  /* 模态框：贴顶、限宽、内部滚动 */
+  .ant-modal { top: 8px !important; max-width: calc(100vw - 16px) !important; }
+  .ant-modal-body { max-height: calc(100vh - 160px); overflow-y: auto; }
+
+  .timetable-grid { grid-template-columns: 34px repeat(7, minmax(0, 1fr)); font-size: calc(11px * var(--tt-scale, 1)); grid-auto-rows: minmax(calc(34px * var(--tt-scale, 1)), 1fr); }
+  .tt-cell { padding: 1px 2px; min-height: 28px; }
+  .tt-head { font-size: 1.09em; padding: 3px 1px; min-height: 30px; gap: 0; }
+  .tt-head-sub { font-size: 0.833em; }
+  .tt-period { gap: 0; }
+  .tt-period span:not(.tt-period-num) { font-size: 0.6em; line-height: 1.1; }
+  .tt-period-num { font-size: 1.09em; }
+  .course-block { padding: 3px 2px 1px; gap: 1px; }
+  .course-block-name { font-size: 1em; line-height: 1.15; }
+  .course-block-meta { font-size: 0.91em; }
+  .course-block-exam { padding: 0 2px; gap: 1px; margin-top: 1px; border-left-width: 2px; }
+  .course-block-exam-tag { font-size: 0.82em; padding: 0 2px; }
+  .course-block-exam-name { font-size: 0.91em; }
+  .course-block-exam-time { font-size: 0.82em; }
+
+  .chat-bubble { max-width: 100%; }
+  .chat-input-bar { flex-direction: column; align-items: stretch; }
+  .chat-input-bar .ant-btn { align-self: flex-end; }
+
+  .login-wrapper { padding: 12px; }
+  .ant-list-item { padding: 10px 4px !important; }
+}
+
+/* ============ 小组件预览页 /widget（与前端暗夜模式保持一致的风格） ============ */
+/* 硬编码暗夜模式设计令牌，保证预览页始终与应用的深色 UI 一致 */
+.widget-page {
+  width: 100vw;
+  height: 100vh;
+  background: #242424;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  color: #f0ebe4;
+  overflow: hidden;
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  padding: 6px 10px 6px;
+}
+.widget-card-loading,
+.widget-card-error {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #f0ebe4;
+  font-size: 13px;
+}
+.widget-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 4px 0 6px;
+  border-bottom: 1px solid #4a4a4a;
+}
+.widget-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #f0ebe4;
+  letter-spacing: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.widget-meta {
+  color: #999999;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.widget-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 8px;
+  padding-top: 4px;
+}
+.widget-col {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.widget-col.timetable {
+  flex: 2;
+}
+.widget-col.todos {
+  flex: 1;
+}
+.widget-col-divider {
+  width: 1px;
+  align-self: stretch;
+  background: #4a4a4a;
+  flex-shrink: 0;
+}
+.widget-col-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #9575cd;
+  letter-spacing: 1px;
+  padding-bottom: 2px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid #4a4a4a;
+}
+.widget-col-count {
+  font-size: 10px;
+  font-weight: 400;
+  color: #888888;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.widget-course-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: repeat(3, minmax(0, auto));
+  grid-auto-flow: column;
+  gap: 4px;
+  min-height: 0;
+  overflow: hidden;
+  align-content: start;
+}
+.widget-todo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 0;
+  overflow: hidden;
+}
+.widget-course-card {
+  border: 1px solid #4a4a4a;
+  border-left: 3px solid;
+  border-radius: 2px;
+  padding: 3px 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex-shrink: 0;
+}
+.widget-course-card-head {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  min-width: 0;
+}
+.widget-course-card-head .widget-course-card-name {
+  flex: 1;
+  font-size: 11px;
+}
+.widget-course-card-status {
+  font-size: 8px;
+  font-weight: 700;
+  opacity: 0.9;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.widget-course-card-status[data-status='进行中'] { color: #a8e6cf; }
+.widget-course-card-status[data-status='已结束'] { color: #888888; }
+.widget-course-card-status[data-status^='还有'] { color: #b197fc; }
+.widget-course-card-status[data-status='明天'] { color: #ffd666; }
+.widget-course-card-status[data-status='后天'] { color: #ffc069; }
+.widget-course-card-status[data-status='非最近'] { color: #888888; }
+.widget-course-card-name {
+  font-weight: 700;
+  font-size: 11px;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.widget-course-card-meta {
+  font-size: 9px;
+  opacity: 0.85;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.widget-exam-card {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid #4a4a4a;
+  border-left: 3px solid #cf1322;
+  border-radius: 2px;
+  background: #2d2d2d;
+  padding: 2px 5px;
+  min-width: 0;
+  flex-shrink: 0;
+}
+.widget-exam-card-tag {
+  flex-shrink: 0;
+  font-size: 9px;
+  font-weight: 700;
+  color: #cf1322;
+  border: 1px solid #cf1322;
+  padding: 0 3px;
+}
+.widget-exam-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+.widget-exam-card-head-row {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  min-width: 0;
+}
+.widget-exam-card-head-row .widget-course-card-name {
+  flex: 1;
+  font-size: 11px;
+}
+.widget-exam-info .widget-course-card-meta { flex-shrink: 0; }
+.widget-todo-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  line-height: 1.4;
+  min-width: 0;
+  flex-shrink: 0;
+}
+.widget-todo-dot {
+  width: 12px;
+  flex-shrink: 0;
+  text-align: center;
+  color: #999999;
+  font-size: 10px;
+}
+.widget-todo-dot[data-overdue='true'] { color: #cf1322; }
+.widget-todo-title {
+  color: #f0ebe4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.widget-todo-title[data-overdue='true'] { color: #ff7875; }
+.widget-todo-meta {
+  margin-left: auto;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0;
+  line-height: 1.3;
+}
+.widget-todo-ddl {
+  color: #999999;
+  font-size: 10px;
+  white-space: nowrap;
+}
+.widget-todo-remain {
+  color: #9575cd;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.widget-todo-remain[data-overdue='true'] { color: #cf1322; }
+.widget-empty {
+  color: #888888;
+  font-size: 11px;
 }

@@ -36,6 +36,24 @@ export interface Course {
 
 export type CoursePayload = Omit<Course, 'id' | 'scheduleId' | 'createdAt' | 'updatedAt'>
 
+/** 考试记录：不按课时，直接输入起止时间，展示为独立红色块 */
+export interface Exam {
+  id: number
+  scheduleId: number
+  name: string
+  location: string | null
+  examDate: string
+  startTime: string
+  endTime: string
+  createdAt?: string
+  updatedAt?: string
+}
+
+export type ExamPayload = Omit<
+  Exam,
+  'id' | 'scheduleId' | 'createdAt' | 'updatedAt'
+>
+
 export interface Todo {
   id: number
   title: string
@@ -43,6 +61,8 @@ export interface Todo {
   completed: boolean
   /** 非空表示由循环规则自动生成 */
   recurringId: number | null
+  /** 非空表示由考试自动关联生成（ddl=考试开始时间，考试结束后自动完成） */
+  examId: number | null
   createdAt?: string
   updatedAt?: string
 }
@@ -110,6 +130,9 @@ export type AiActionType =
   | 'UPDATE_RECURRING'
   | 'DELETE_RECURRING'
   | 'TOGGLE_RECURRING'
+  | 'CREATE_EXAM'
+  | 'UPDATE_EXAM'
+  | 'DELETE_EXAM'
 
 export type AiActionStatus = 'PENDING' | 'EXECUTED' | 'REJECTED' | 'STALE'
 

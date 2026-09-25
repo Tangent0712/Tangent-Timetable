@@ -10,12 +10,14 @@ import com.timetable.dto.AiConversationRequest;
 import com.timetable.dto.AiMessageRequest;
 import com.timetable.dto.AiMessageResponse;
 import com.timetable.dto.CourseRequest;
+import com.timetable.dto.ExamRequest;
 import com.timetable.dto.RecurringTodoRequest;
 import com.timetable.dto.TodoRequest;
 import com.timetable.entity.AiAction;
 import com.timetable.entity.AiConversation;
 import com.timetable.entity.AiMessage;
 import com.timetable.entity.Course;
+import com.timetable.entity.Exam;
 import com.timetable.entity.PeriodConfig;
 import com.timetable.entity.RecurringTodo;
 import com.timetable.entity.Schedule;
@@ -27,6 +29,7 @@ import com.timetable.mapper.AiMessageMapper;
 import com.timetable.service.AiService;
 import com.timetable.service.CourseService;
 import com.timetable.service.DeepSeekClient;
+import com.timetable.service.ExamService;
 import com.timetable.service.PeriodConfigService;
 import com.timetable.service.RecurringTodoService;
 import com.timetable.service.ScheduleService;
@@ -70,6 +73,7 @@ public class AiServiceImpl implements AiService {
     private final DeepSeekClient deepSeekClient;
     private final ScheduleService scheduleService;
     private final CourseService courseService;
+    private final ExamService examService;
     private final TodoService todoService;
     private final RecurringTodoService recurringTodoService;
     private final PeriodConfigService periodConfigService;
@@ -81,6 +85,7 @@ public class AiServiceImpl implements AiService {
                          DeepSeekClient deepSeekClient,
                          ScheduleService scheduleService,
                          CourseService courseService,
+                         ExamService examService,
                          TodoService todoService,
                          RecurringTodoService recurringTodoService,
                          PeriodConfigService periodConfigService,
@@ -91,6 +96,7 @@ public class AiServiceImpl implements AiService {
         this.deepSeekClient = deepSeekClient;
         this.scheduleService = scheduleService;
         this.courseService = courseService;
+        this.examService = examService;
         this.todoService = todoService;
         this.recurringTodoService = recurringTodoService;
         this.periodConfigService = periodConfigService;
@@ -172,6 +178,15 @@ public class AiServiceImpl implements AiService {
         return conversation;
     }
 
+    private String scheduleName(Long scheduleId, String apiKey) {
+        try {
+            Schedule s = scheduleService.getById(scheduleId, apiKey);
+            return s != null ? s.getName() : String.valueOf(scheduleId);
+        } catch (Exception e) {
+            return String.valueOf(scheduleId);
+        }
+    }
+
     private List<AiMessage> loadMessages(Long conversationId) {
         LambdaQueryWrapper<AiMessage> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(AiMessage::getConversationId, conversationId).orderByAsc(AiMessage::getId);
@@ -192,7 +207,7 @@ public class AiServiceImpl implements AiService {
      * COURSE 类归课表域；TODO 与 RECURRING 类同归待办域（循环规则是待办的来源，语义相连）。
      */
     private String scopeOf(String actionType) {
-        return actionType.contains("COURSE") ? SCOPE_COURSE : SCOPE_TODO;
+        return actionType.contains("COURSE") || actionType.contains("EXAM") ? SCOPE_COURSE : SCOPE_TODO;
     }
 
     /**
@@ -209,6 +224,13 @@ public class AiServiceImpl implements AiService {
                             .append(c.getDayOfWeek()).append(':').append(c.getStartPeriod()).append('-')
                             .append(c.getEndPeriod()).append(':').append(c.getWeeks()).append(':')
                             .append(c.getLocation()).append(':').append(c.getTeacher()).append(';');
+                }
+                sb.append("|E|");
+                for (Exam e : examService.listByScheduleId(scheduleId, apiKey)) {
+                    sb.append(e.getId()).append(':')
+                            .append(e.getName()).append(':').append(e.getExamDate()).append(':')
+                            .append(e.getStartTime()).append(':').append(e.getEndTime()).append(':')
+                            .append(e.getLocation()).append(';');
                 }
             }
         } else {
@@ -322,12 +344,23 @@ public class AiServiceImpl implements AiService {
                                      String apiKey, StreamCallback callback) {
         AiConversation conversation = getConversation(conversationId, apiKey);
 
-        Long scheduleId = request.getScheduleId() != null ? request.getScheduleId() : conversation.getScheduleId();
+        // 工作空间保护：每个对话绑定一个课表（工作空间）。一旦绑定，
+        // 不允许在其它课表下继续对话，避免串到别的课表的数据。
+        Long requestScheduleId = request.getScheduleId();
+        Long conversationScheduleId = conversation.getScheduleId();
+        if (conversationScheduleId != null && requestScheduleId != null
+                && !conversationScheduleId.equals(requestScheduleId)) {
+            throw new BusinessException(400, "该对话属于「" + scheduleName(conversationScheduleId, apiKey)
+                    + "」课表，请切换到对应课表后再继续，或新建对话");
+        }
+        Long scheduleId = requestScheduleId != null ? requestScheduleId : conversationScheduleId;
         Schedule schedule = null;
         List<Course> courses = Collections.emptyList();
+        List<Exam> exams = Collections.emptyList();
         if (scheduleId != null) {
             schedule = scheduleService.getById(scheduleId, apiKey);
             courses = courseService.listByScheduleId(scheduleId, apiKey);
+            exams = examService.listByScheduleId(scheduleId, apiKey);
         }
         List<Todo> todos = todoService.list(apiKey);
         List<RecurringTodo> recurringTodos = recurringTodoService.list(apiKey);
@@ -341,7 +374,7 @@ public class AiServiceImpl implements AiService {
 
         List<DeepSeekClient.Message> payload = new ArrayList<>();
         payload.add(new DeepSeekClient.Message("system",
-                AiPromptBuilder.buildChatSystemPrompt(schedule, courses, todos, recurringTodos, periods, LocalDate.now())));
+                AiPromptBuilder.buildChatSystemPrompt(schedule, courses, exams, todos, recurringTodos, periods, LocalDate.now())));
 
         List<AiMessage> history = loadMessages(conversationId);
         int from = Math.max(0, history.size() - HISTORY_LIMIT);
@@ -454,23 +487,28 @@ public class AiServiceImpl implements AiService {
             if (data.isMissingNode()) {
                 data = objectMapper.createObjectNode();
             }
-            enrichBeforeSnapshot(type, data, courses, todos, recurringTodos);
+            // 一条数据库基本操作 = 一条 ai_action。AI 可能把多条记录塞进同一个 action
+            // （如 {"exams":[e1,e2,e3]}），这里拆成多条独立 action，各渲染一张卡片、
+            // 各带独立确认按钮，并可任意顺序单独执行。
+            for (ObjectNode oneData : splitToSingleActions(type, data)) {
+                enrichBeforeSnapshot(type, oneData, courses, todos, recurringTodos, exams);
 
-            String scope = scopeOf(type);
-            AiAction action = new AiAction();
-            action.setMessageId(assistantMessage.getId());
-            action.setApiKey(apiKey);
-            action.setScope(scope);
-            action.setActionType(type);
-            action.setActionStatus(STATUS_PENDING);
-            try {
-                action.setActionData(objectMapper.writeValueAsString(data));
-            } catch (Exception e) {
-                throw new BusinessException(502, "AI 返回的操作数据无法序列化");
+                String scope = scopeOf(type);
+                AiAction action = new AiAction();
+                action.setMessageId(assistantMessage.getId());
+                action.setApiKey(apiKey);
+                action.setScope(scope);
+                action.setActionType(type);
+                action.setActionStatus(STATUS_PENDING);
+                try {
+                    action.setActionData(objectMapper.writeValueAsString(oneData));
+                } catch (Exception e) {
+                    throw new BusinessException(502, "AI 返回的操作数据无法序列化");
+                }
+                action.setDataFingerprint(fingerprintOf(scope, scheduleId, apiKey));
+                action.setSortOrder(order++);
+                created.add(action);
             }
-            action.setDataFingerprint(fingerprintOf(scope, scheduleId, apiKey));
-            action.setSortOrder(order++);
-            created.add(action);
         }
 
         // 先按作用域让旧提案失效，再插入新提案
@@ -532,7 +570,7 @@ public class AiServiceImpl implements AiService {
     // ==================== 修改前快照 ====================
 
     private void enrichBeforeSnapshot(String type, JsonNode data, List<Course> courses,
-                                      List<Todo> todos, List<RecurringTodo> rules) {
+                                      List<Todo> todos, List<RecurringTodo> rules, List<Exam> exams) {
         if (!(data instanceof ObjectNode target)) {
             return;
         }
@@ -584,6 +622,21 @@ public class AiServiceImpl implements AiService {
                             .ifPresent(r -> before.add(recurringSnapshot(r)));
                 }
             }
+            case "UPDATE_EXAM" -> {
+                for (JsonNode node : data.path("exams")) {
+                    if (!node.hasNonNull("id")) continue;
+                    long id = node.get("id").asLong();
+                    exams.stream().filter(e -> e.getId() == id).findFirst()
+                            .ifPresent(e -> before.add(examSnapshot(e)));
+                }
+            }
+            case "DELETE_EXAM" -> {
+                for (JsonNode node : data.path("examIds")) {
+                    long id = node.asLong();
+                    exams.stream().filter(e -> e.getId() == id).findFirst()
+                            .ifPresent(e -> before.add(examSnapshot(e)));
+                }
+            }
             default -> {
                 return;
             }
@@ -631,6 +684,17 @@ public class AiServiceImpl implements AiService {
         node.put("title", t.getTitle());
         node.put("ddl", t.getDdl() == null ? null : t.getDdl().toString());
         node.put("completed", t.getCompleted());
+        return node;
+    }
+
+    private ObjectNode examSnapshot(Exam e) {
+        ObjectNode node = objectMapper.createObjectNode();
+        node.put("id", e.getId());
+        node.put("name", e.getName());
+        node.put("location", e.getLocation());
+        node.put("examDate", e.getExamDate() == null ? null : e.getExamDate().toString());
+        node.put("startTime", e.getStartTime() == null ? null : e.getStartTime().toString());
+        node.put("endTime", e.getEndTime() == null ? null : e.getEndTime().toString());
         return node;
     }
 
@@ -814,6 +878,25 @@ public class AiServiceImpl implements AiService {
                     recurringTodoService.toggleEnabled(node.asLong(), apiKey);
                 }
             }
+            case "CREATE_EXAM" -> {
+                requireSchedule(scheduleId);
+                for (JsonNode node : arrayOf(data, "exams")) {
+                    examService.create(scheduleId, toExamRequest(node), apiKey);
+                }
+            }
+            case "UPDATE_EXAM" -> {
+                for (JsonNode node : arrayOf(data, "exams")) {
+                    if (!node.hasNonNull("id")) {
+                        throw new BusinessException(400, "修改考试缺少 id");
+                    }
+                    examService.update(node.get("id").asLong(), toExamRequest(node), apiKey);
+                }
+            }
+            case "DELETE_EXAM" -> {
+                for (JsonNode node : arrayOf(data, "examIds")) {
+                    examService.delete(node.asLong(), apiKey);
+                }
+            }
             default -> throw new BusinessException(400, "不支持的操作类型: " + type);
         }
     }
@@ -832,6 +915,51 @@ public class AiServiceImpl implements AiService {
         List<JsonNode> list = new ArrayList<>();
         node.forEach(list::add);
         return list;
+    }
+
+    /**
+     * 把一条 action 的 data 拆成「每条数据库基本操作一条」的多个 data。
+     *
+     * AI 常把多条记录塞进一个 action（如 {"exams":[e1,e2,e3]} 或 {"courseIds":[1,2,3]}）。
+     * 为了让每条操作独立成卡、独立确认，这里按数组字段逐条拆开；
+     * 未识别到多记录数组时原样返回单条。
+     */
+    private List<ObjectNode> splitToSingleActions(String type, JsonNode data) {
+        String recordField = null;
+        String idField = null;
+        switch (type) {
+            case "CREATE_COURSE", "UPDATE_COURSE" -> recordField = "courses";
+            case "DELETE_COURSE" -> idField = "courseIds";
+            case "CREATE_TODO", "UPDATE_TODO" -> recordField = "todos";
+            case "DELETE_TODO", "TOGGLE_TODO" -> idField = "todoIds";
+            case "CREATE_RECURRING", "UPDATE_RECURRING" -> recordField = "rules";
+            case "DELETE_RECURRING", "TOGGLE_RECURRING" -> idField = "recurringIds";
+            case "CREATE_EXAM", "UPDATE_EXAM" -> recordField = "exams";
+            case "DELETE_EXAM" -> idField = "examIds";
+            default -> { /* 不认识的类型，原样返回 */ }
+        }
+
+        ObjectNode base = data instanceof ObjectNode on ? on.deepCopy()
+                : objectMapper.createObjectNode();
+
+        String field = recordField != null ? recordField : idField;
+        JsonNode arr = field != null ? base.path(field) : null;
+
+        if (arr == null || !arr.isArray() || arr.isEmpty()) {
+            List<ObjectNode> single = new ArrayList<>();
+            single.add(base);
+            return single;
+        }
+
+        List<ObjectNode> result = new ArrayList<>();
+        for (JsonNode item : arr) {
+            ObjectNode copy = base.deepCopy();
+            ArrayNode one = objectMapper.createArrayNode();
+            one.add(item.deepCopy());
+            copy.set(field, one);
+            result.add(copy);
+        }
+        return result;
     }
 
     private CourseRequest toCourseRequest(JsonNode node) {
@@ -860,6 +988,22 @@ public class AiServiceImpl implements AiService {
             throw new BusinessException(400, "待办信息不完整，无法执行");
         }
         req.setDdl(parseDateTime(ddl));
+        return req;
+    }
+
+    private ExamRequest toExamRequest(JsonNode node) {
+        ExamRequest req = new ExamRequest();
+        req.setName(textOrNull(node, "name"));
+        req.setLocation(textOrNull(node, "location"));
+        String date = textOrNull(node, "examDate");
+        String start = textOrNull(node, "startTime");
+        String end = textOrNull(node, "endTime");
+        if (req.getName() == null || date == null || start == null || end == null) {
+            throw new BusinessException(400, "考试信息不完整，无法执行");
+        }
+        req.setExamDate(LocalDate.parse(date));
+        req.setStartTime(parseTime(start));
+        req.setEndTime(parseTime(end));
         return req;
     }
 

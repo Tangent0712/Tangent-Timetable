@@ -1,10 +1,12 @@
-import { useMemo, type ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Dropdown, Select, Tag, Tooltip } from 'antd'
 import {
+  BookOutlined,
   CalendarOutlined,
   CheckSquareOutlined,
   LogoutOutlined,
+  MenuOutlined,
   MessageOutlined,
   ReloadOutlined,
   SettingOutlined,
@@ -17,6 +19,7 @@ const NAV_ITEMS = [
   { key: '/timetable', icon: <CalendarOutlined />, label: '课表' },
   { key: '/todos', icon: <CheckSquareOutlined />, label: '待办' },
   { key: '/ai', icon: <MessageOutlined />, label: 'AI 助手' },
+  { key: '/manual', icon: <BookOutlined />, label: '用户手册' },
   { key: '/settings', icon: <SettingOutlined />, label: '设置' },
 ]
 
@@ -24,6 +27,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const location = useLocation()
   const navigate = useNavigate()
   const { mode, toggle } = useTheme()
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const {
     label,
     avatarUrl,
@@ -52,8 +56,17 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     <div className="app-shell">
       {/* Top bar */}
       <div className="app-topbar">
-        <div className="app-topbar-title" onClick={() => navigate('/timetable')}>
-          大切课程表
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+          <div
+            className="icon-btn-round topbar-menu-btn"
+            onClick={() => setSidebarOpen((o) => !o)}
+            title="菜单"
+          >
+            <MenuOutlined />
+          </div>
+          <div className="app-topbar-title" onClick={() => navigate('/timetable')}>
+            大切课程表
+          </div>
         </div>
         <div className="app-topbar-actions">
           {weekInfo && (
@@ -97,8 +110,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
       {/* Body: sidebar + content */}
       <div className="app-body">
+        {sidebarOpen && <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} />}
         {/* Sidebar */}
-        <aside className="app-sidebar">
+        <aside className={`app-sidebar${sidebarOpen ? ' open' : ''}`}>
           <div className="sidebar-avatar">
             <div className="sidebar-avatar-img">
               {avatarUrl ? (
@@ -122,6 +136,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 key={item.key}
                 to={item.key}
                 className={`sidebar-nav-item ${selectedKey === item.key ? 'active' : ''}`}
+                onClick={() => setSidebarOpen(false)}
               >
                 {selectedKey === item.key ? `✦ ${item.label}` : item.label}
               </Link>

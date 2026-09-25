@@ -13,7 +13,13 @@ import {
   Typography,
   message,
 } from 'antd'
-import { DeleteOutlined, EditOutlined, PlusOutlined, SendOutlined } from '@ant-design/icons'
+import {
+  DeleteOutlined,
+  EditOutlined,
+  MenuOutlined,
+  PlusOutlined,
+  SendOutlined,
+} from '@ant-design/icons'
 import AiActionCard from '../components/AiActionCard'
 import { aiApi } from '../api'
 import { useApp } from '../store/AppContext'
@@ -35,12 +41,13 @@ interface StreamState {
 }
 
 export default function AiChatPage() {
-  const { activeSchedule, activeScheduleId, courses, todos, refreshCourses, refreshTodos } =
+  const { activeSchedule, activeScheduleId, schedules, courses, todos, refreshCourses, refreshTodos } =
     useApp()
 
   const [enabled, setEnabled] = useState<boolean | null>(null)
   const [conversations, setConversations] = useState<AiConversation[]>([])
   const [currentId, setCurrentId] = useState<number | null>(null)
+  const [convPanelOpen, setConvPanelOpen] = useState(false)
   const [messages, setMessages] = useState<AiMessage[]>([])
   const [input, setInput] = useState('')
   const [loadingMessages, setLoadingMessages] = useState(false)
@@ -54,6 +61,17 @@ export default function AiChatPage() {
 
   const stream = currentId !== null ? streams[currentId] : undefined
   const sending = stream !== undefined
+
+  // 工作空间保护：每个对话绑定一个课表。当前课表与对话所属课表不一致时，
+  // 禁止发送消息 / 执行或取消提案，避免串到其它课表的数据。
+  const currentConv = conversations.find((c) => c.id === currentId) ?? null
+  const workspaceMismatch =
+    currentConv?.scheduleId != null && currentConv.scheduleId !== activeScheduleId
+  const convScheduleName =
+    currentConv?.scheduleId != null
+      ? schedules.find((s) => s.id === currentConv?.scheduleId)?.name ??
+        `课表#${currentConv.scheduleId}`
+      : null
 
   const patchStream = useCallback((convId: number, patch: Partial<StreamState>) => {
     setStreams((prev) => {
@@ -123,9 +141,17 @@ export default function AiChatPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataVersion])
 
+  // 只在「有新消息流式输出」或「切换对话加载完成」时自动滚到底部；
+  // 执行/取消提案只是更新消息状态，不触发滚动，保留当前位置。
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, stream?.text, stream?.phase])
+    if (stream) bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [stream?.text, stream?.phase])
+
+  useEffect(() => {
+    if (currentId !== null && !loadingMessages) {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [currentId, loadingMessages])
 
   const newConversation = async () => {
     try {
@@ -133,6 +159,7 @@ export default function AiChatPage() {
       await loadConversations()
       setCurrentId(conv.id)
       setMessages([])
+      setConvPanelOpen(false)
     } catch (e) {
       message.error(e instanceof Error ? e.message : '创建对话失败')
     }
@@ -202,6 +229,10 @@ export default function AiChatPage() {
   const send = async () => {
     const content = input.trim()
     if (!content || sending) return
+    if (workspaceMismatch) {
+      message.warning('该对话属于另一个课表，请切换到对应课表后再继续，或新建对话')
+      return
+    }
 
     let convId = currentId
     setInput('')
@@ -211,6 +242,7 @@ export default function AiChatPage() {
         const conv = await aiApi.createConversation(activeScheduleId)
         convId = conv.id
         setCurrentId(conv.id)
+        setConvPanelOpen(false)
         await loadConversations()
       }
     } catch (e) {
@@ -259,6 +291,10 @@ export default function AiChatPage() {
 
   const execute = async (actionId: number) => {
     if (currentId === null) return
+    if (workspaceMismatch) {
+      message.warning('该对话属于另一个课表，无法在当前课表下执行')
+      return
+    }
     setExecutingId(actionId)
     try {
       await aiApi.execute(currentId, actionId)
@@ -279,6 +315,10 @@ export default function AiChatPage() {
 
   const reject = async (actionId: number) => {
     if (currentId === null) return
+    if (workspaceMismatch) {
+      message.warning('该对话属于另一个课表，无法在当前课表下操作')
+      return
+    }
     try {
       await aiApi.reject(currentId, actionId)
       setMessages(await aiApi.listMessages(currentId))
@@ -293,7 +333,9 @@ export default function AiChatPage() {
 
   return (
     <div style={{ display: 'flex', gap: 16, flex: 1, minHeight: 0 }}>
+      {convPanelOpen && <div className="conv-backdrop" onClick={() => setConvPanelOpen(false)} />}
       <Card
+        className={`conv-panel${convPanelOpen ? ' open' : ''}`}
         size="small"
         title="对话记录"
         style={{ width: 240, flexShrink: 0, display: 'flex', flexDirection: 'column' }}
@@ -367,8 +409,10 @@ export default function AiChatPage() {
                   paddingInline: 8,
                 }}
                 onClick={() => {
-                  if (listMode === 'normal') setCurrentId(conv.id)
-                  else if (listMode === 'delete') toggleDeleteSelect(conv.id)
+                  if (listMode === 'normal') {
+                    setCurrentId(conv.id)
+                    setConvPanelOpen(false)
+                  } else if (listMode === 'delete') toggleDeleteSelect(conv.id)
                 }}
               >
                 <Space size={4} style={{ width: '100%' }}>
@@ -411,15 +455,26 @@ export default function AiChatPage() {
         bodyStyle={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, padding: 16 }}
         title={
           <Space wrap={false}>
+            <Button
+              className="conv-toggle-btn"
+              size="small"
+              icon={<MenuOutlined />}
+              onClick={() => setConvPanelOpen(true)}
+            >
+              对话
+            </Button>
             <span>AI 助手</span>
-            {activeSchedule ? (
-              <>
-                <Tag color="blue">{activeSchedule.name}</Tag>
-                {weekInfo && <Tag>{weekInfo}</Tag>}
-              </>
+            {convScheduleName ? (
+              <Tag color={workspaceMismatch ? 'red' : 'blue'}>
+                {workspaceMismatch ? '⚠ ' : ''}
+                {convScheduleName}
+              </Tag>
+            ) : activeSchedule ? (
+              <Tag color="blue">{activeSchedule.name}</Tag>
             ) : (
               <Tag color="orange">未选择课表</Tag>
             )}
+            {activeSchedule && !workspaceMismatch && weekInfo && <Tag>{weekInfo}</Tag>}
           </Space>
         }
       >
@@ -433,6 +488,23 @@ export default function AiChatPage() {
           />
         )}
 
+        {workspaceMismatch && (
+          <Alert
+            type="error"
+            showIcon
+            message="工作空间不一致"
+            description={`该对话属于「${
+              currentConv?.scheduleId != null
+                ? schedules.find((s) => s.id === currentConv?.scheduleId)?.name ??
+                  `课表#${currentConv.scheduleId}`
+                : '某课表'
+            }」，与当前课表「${
+              activeSchedule?.name ?? '未选择'
+            }」不一致，已锁定发送与操作。请切换到对应课表，或新建对话。`}
+            style={{ marginBottom: 12, flexShrink: 0 }}
+          />
+        )}
+
         <div className="chat-layout">
           <div className="chat-messages">
             {loadingMessages ? (
@@ -442,16 +514,26 @@ export default function AiChatPage() {
             ) : messages.length === 0 && !stream ? (
               <Empty
                 description={
-                  <Space direction="vertical" align="center">
+                  <div>
                     <span>用一句话管理课表和待办，支持一次做多件事</span>
                     <Space wrap style={{ justifyContent: 'center' }}>
-                      {EXAMPLES.map((ex) => (
-                        <Button key={ex} size="small" onClick={() => setInput(ex)}>
+                      {EXAMPLES.map((ex, i) => (
+                        <Typography.Text
+                          key={i}
+                          className="example-chip"
+                          type="secondary"
+                        >
                           {ex}
-                        </Button>
+                        </Typography.Text>
                       ))}
                     </Space>
-                  </Space>
+                    <Typography.Text
+                      type="secondary"
+                      style={{ display: 'block', fontSize: 11, marginTop: 4 }}
+                    >
+                      以上仅为示例，不一定适用于当前课表，请按自己的情况描述。
+                    </Typography.Text>
+                  </div>
                 }
                 style={{ paddingTop: 60 }}
               />
@@ -474,6 +556,7 @@ export default function AiChatPage() {
                         key={action.actionId}
                         action={action}
                         executing={executingId === action.actionId}
+                        disabled={workspaceMismatch}
                         onExecute={() => execute(action.actionId)}
                         onReject={() => reject(action.actionId)}
                       />
@@ -522,7 +605,7 @@ export default function AiChatPage() {
               onChange={(e) => setInput(e.target.value)}
               placeholder="输入自然语言指令，可一次说多件事（Enter 发送，Shift+Enter 换行）"
               autoSize={{ minRows: 1, maxRows: 4 }}
-              disabled={enabled === false}
+              disabled={enabled === false || workspaceMismatch}
               onPressEnter={(e) => {
                 if (!e.shiftKey) {
                   e.preventDefault()
@@ -534,7 +617,7 @@ export default function AiChatPage() {
               type="primary"
               icon={<SendOutlined />}
               loading={sending}
-              disabled={enabled === false || !input.trim()}
+              disabled={enabled === false || workspaceMismatch || !input.trim()}
               onClick={send}
             >
               发送

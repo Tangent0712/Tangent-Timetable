@@ -116,8 +116,42 @@
 | title | String | 事项标题 |
 | ddl | DateTime | 截止时间 |
 | completed | Boolean | 是否完成 |
+| recurring_id | Long | 可空；由循环规则自动生成时指向该规则 |
+| exam_id | Long | 可空；由考试自动关联生成（ddl=考试开始时间，考试结束后自动完成） |
 | created_at | DateTime | 创建时间 |
 | updated_at | DateTime | 更新时间 |
+
+##### 考试记录 (Exam) — 期末周/四六级等
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | Long | 主键 |
+| schedule_id | Long | 所属课表（归属/权限） |
+| name | String | 考试名称/类型，如「数据结构期末考试」「CET-6」，不关联课程 |
+| location | String | 地点，可空 |
+| exam_date | Date | 考试日期 |
+| start_time / end_time | Time | 起止时间（**不按课时，直接输入**） |
+| created_at / updated_at | DateTime | 时间戳 |
+
+> 考试**不关联课程**。创建/修改/删除考试时自动同步一条关联待办（`todo.exam_id`）；
+> 考试结束后由 `ExamTodoScheduler` 自动完成该待办。课表网格中考试按日期/时间渲染为独立红色块，
+> 只显示考试名称、起止时间（两行）、地点。
+
+##### 循环待办规则 (RecurringTodo)
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | Long | 主键 |
+| api_key | VARCHAR(64) | 所属用户 |
+| title | String | 规则标题 |
+| frequency | Enum | DAILY / WEEKLY / MONTHLY / CUSTOM |
+| day_of_week / day_of_month | Int | WEEKLY / MONTHLY 用 |
+| trigger_time | Time | 每期触发时刻（CUSTOM 不需要） |
+| script | Text | CUSTOM 模式的 `shouldTrigger(ctx)` 脚本 |
+| ddl_offset_minutes | Int | 截止 = 触发时刻 + 该分钟数 |
+| enabled / chain_after_complete | Boolean | 是否启用 / 完成后是否立即接下一期 |
+| next_trigger_at | DateTime | 下次触发时间 |
+
+> 到点由 `RecurringTodoScheduler` 自动生成真实待办（`todo.recurring_id` 指回规则）；
+> CUSTOM 用 Rhino 沙箱执行脚本判断触发时机（双周周五、每月最后工作日等）。
 
 #### 4.1.2 核心接口
 
@@ -138,12 +172,17 @@
 | POST | /api/todos | 创建待办 |
 | PUT | /api/todos/{id} | 修改待办 |
 | DELETE | /api/todos/{id} | 删除待办 |
+| GET | /api/schedules/{id}/exams | 获取课表下所有考试 |
+| POST | /api/schedules/{id}/exams | 新增考试 |
+| PUT | /api/exams/{id} | 修改考试 |
+| DELETE | /api/exams/{id} | 删除考试 |
+| GET/POST/PUT/DELETE | /api/recurring-todos[/{id}] | 循环待办规则 CRUD |
 | GET | /api/period-config | 获取作息时间表 |
-| PUT | /api/period-config | 修改作息时间表 |
+| PUT | /api/period-config | 修改作息时间表（仅 Tangent0712 前端可改） |
 | POST | /api/ai/conversations | 创建 AI 对话 |
-| POST | /api/ai/conversations/{id}/messages | 发送消息，返回 AI 回复（含可选 action 提案） |
+| POST | /api/ai/conversations/{id}/messages | 发送消息，返回 AI 回复（含 action 提案） |
 | GET | /api/ai/conversations/{id}/messages | 获取对话历史 |
-| POST | /api/ai/conversations/{id}/messages/{msgId}/execute | 确认执行 AI 操作提案 |
+| POST | /api/ai/conversations/{id}/actions/{actionId}/execute | 确认执行单个 AI 提案 |
 
 ---
 
@@ -155,13 +194,16 @@
 |------|------|------|
 | 课表管理 | 新建/切换/删除课表 | 支持多个学期课表并存 |
 | 课表管理 | 导入教务系统HTML | 粘贴HTML → 调用AI解析 → 预览 → 确认导入（**仅Web端支持**） |
-| 课表管理 | 可视化课表视图 | 按周视图显示，每格显示课程名+地点+教师 |
+| 课表管理 | 可视化课表视图 | 按周视图显示，每格显示课程名+地点+教师；窄屏自动收缩、占满屏幕 |
 | 课表管理 | 手动增删改课程 | 表单编辑课程详情 |
-| AI 操作 | 自然语言操作课表 | 一句话添加/修改/删除课程，如"下周一3-4节加一节课" |
-| AI 操作 | 自然语言添加待办 | 如"下周五前交高数作业" |
-| 待办管理 | 待办列表 | 显示标题、剩余时间、完成状态 |
-| 待办管理 | 完成/删除待办 | 勾选完成或删除 |
-| 设置 | 作息时间表配置 | 修改每节课的开始/结束时间 |
+| 课表管理 | 全部课程卡片视图 | 非表格、响应式卡片网格，无横向滚动 |
+| 考试管理 | 考试增删改 | 直接输入日期/起止时间，不关联课程；课表红色块展示；自动生成关联待办 |
+| 待办管理 | 待办列表 | 显示标题、剩余时间、完成状态、循环/考试标签 |
+| 待办管理 | 循环任务 | 每日/每周/每月/自定义脚本规则，到点自动生成待办 |
+| AI 操作 | 自然语言操作课表/待办/考试 | 一句话增删改查，多步骤操作逐条卡片确认 |
+| 设置 | 作息时间表 | **仅 Tangent0712 可编辑**，其余只读（红色提示） |
+| 设置 | 字体大小 | 全局字体 + 课表字体两档，保存到本机 localStorage |
+| 帮助 | 用户手册页 | 内置 `/manual` 白话教程（给非技术朋友） |
 
 #### 4.2.2 关键交互
 
@@ -401,12 +443,19 @@ Response:
   }
 }
 
-POST /api/ai/conversations/{id}/messages/{messageId}/execute
-确认执行 AI 提议的操作，后端执行 CRUD 并写库
+POST /api/ai/conversations/{id}/actions/{actionId}/execute
+确认执行 AI 提议的单个操作，后端执行 CRUD 并写库
 
 GET /api/ai/conversations/{id}/messages
 获取对话历史
 ```
+
+> **AI 操作提案**：AI 返回 `{text, actions[]}`，一次可含多个操作（如「删除所有考试」→ 多张「删除考试」卡）。
+> 每条数据库基本操作独立成一张卡片、各自有「确认执行/取消」按钮，**逐条确认，不做一键全部执行**。
+> 支持的 action.type：课程（CREATE/UPDATE/DELETE_COURSE）、待办（CREATE/UPDATE/DELETE/TOGGLE_TODO）、
+> 循环（CREATE/UPDATE/DELETE/TOGGLE_RECURRING）、考试（CREATE/UPDATE/DELETE_EXAM）。
+> 若 AI 把多条记录塞进同一 action，后端 `splitToSingleActions` 会按数组字段逐条拆成独立 action。
+> 每个 AI 对话绑定一个课表作为**工作空间**，非该课表下禁止发消息/执行（防止串数据）。
 
 #### 4.5.4 AI Prompt 设计要点
 - System Prompt 需包含以下上下文信息：
@@ -620,7 +669,7 @@ CREATE TABLE todo (
 
 ---
 
-*文档版本: v0.5 | 多用户 API Key 方案已补充*
+*文档版本: v0.6 | 已实现 Web 端全量功能*
 
 ### 变更记录
 | 版本 | 变更内容 |
@@ -630,3 +679,4 @@ CREATE TABLE todo (
 | v0.3 | 基于 SUPER_ISLAND_INTEGRATION_GUIDE.md 更新灵动岛实现方案：FocusNotification+Shizuku XMSF绕过、LiveUpdate降级、调度策略细化；移除 AI Prompt 中作息时间表；全部待定项已确认 |
 | v0.4 | AI 重构为多轮对话模式：基于 conversation/messages/execute 接口设计；AI 回复支持操作提案+追问+纯文本三种类型；前端新增独立 AI 对话页面；明确"下周一/每周一/周三"语义约定 |
 | v0.5 | 支持多人使用：API Key 作为账号体系，每人独立 Key 和数据空间；新增 api_key 表，Schedule/Todo 按 Key 隔离；各端增加登录/登出流程；新增 /api/auth/verify 验证接口 |
+| v0.6 | 新增考试记录（不关联课程、自动关联待办）、循环待办规则（含 Rhino 自定义脚本）、AI 多步骤提案逐条确认 + 工作空间保护；Web 端响应式布局、字体大小设置、用户手册页、作息时间表仅管理员可编辑；考试移除 course_id |

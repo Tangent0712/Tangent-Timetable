@@ -1,6 +1,7 @@
 package com.timetable.service.impl;
 
 import com.timetable.entity.Course;
+import com.timetable.entity.Exam;
 import com.timetable.entity.PeriodConfig;
 import com.timetable.entity.RecurringTodo;
 import com.timetable.entity.Schedule;
@@ -40,6 +41,7 @@ public final class AiPromptBuilder {
 
     public static String buildChatSystemPrompt(Schedule schedule,
                                                List<Course> courses,
+                                               List<Exam> exams,
                                                List<Todo> todos,
                                                List<RecurringTodo> recurringTodos,
                                                List<PeriodConfig> periods,
@@ -54,6 +56,8 @@ public final class AiPromptBuilder {
                 .append("重要：actions 是数组，一次可以返回多个操作。若用户一句话包含多件事")
                 .append("（例如「删掉周五的高数，再加一条周三交实验报告的待办」），")
                 .append("请拆成多个独立的 action 元素，每个 action 只做一件事。\n")
+                .append("**禁止合并多条记录到一个 action**：删除/修改多条记录时，必须为每条记录")
+                .append("单独生成一个 action（如删除 7 门课就生成 7 个 DELETE_COURSE，每个只含一个 id）。\n")
                 .append("不需要执行任何操作时，actions 返回空数组 []。\n")
                 .append("注意：text 字段必须放在 JSON 的最前面，先写完 text 再写 actions。\n\n");
 
@@ -71,7 +75,19 @@ public final class AiPromptBuilder {
                 .append("\"chainAfterComplete\":true/false,\"script\":\"自定义脚本\"（仅 CUSTOM 必填）}]}\n")
                 .append("- UPDATE_RECURRING: {\"rules\":[{\"id\":规则id, 其余字段同上（需携带完整字段）}]}\n")
                 .append("- DELETE_RECURRING: {\"recurringIds\":[规则id数组]}\n")
-                .append("- TOGGLE_RECURRING: {\"recurringIds\":[规则id数组]}（启用/停用切换）\n\n");
+                .append("- TOGGLE_RECURRING: {\"recurringIds\":[规则id数组]}（启用/停用切换）\n")
+                .append("- CREATE_EXAM: {\"exams\":[{\"name\":\"考试名\",\"location\":\"地点或null\",\"examDate\":\"yyyy-MM-dd\",\"startTime\":\"HH:mm\",\"endTime\":\"HH:mm\"}]}\n")
+                .append("- UPDATE_EXAM: {\"exams\":[{\"id\":考试id, 其余字段同 CREATE_EXAM（需携带完整字段）}]}\n")
+                .append("- DELETE_EXAM: {\"examIds\":[考试id数组]}\n\n");
+
+        sb.append("## 考试记录说明\n")
+                .append("考试记录用于期末周等场景，**不按课时计算时间**，直接指定日期和起止时间，")
+                .append("在课表里按日期/时间展示。\n")
+                .append("- 考试名直接用考试类型/名称，如\"数据结构期末考试\"、\"CET-6\"、\"业余无线电A类考试\"；")
+                .append("不区分是否关联课程，考试只包含名称、日期、起止时间、地点\n")
+                .append("- 新增考试必须提供 name、examDate（yyyy-MM-dd）、startTime 与 endTime（HH:mm，结束不能早于开始）；location 可空\n")
+                .append("- 修改/删除考试时，用下面\"已有考试\"里的真实考试 id\n")
+                .append("- 用户说\"给数据结构加场期末考试\"\"加一场12月16日的CET6\"等，都只需 CREATE_EXAM，考试名写清楚即可\n\n");
 
         sb.append("## 循环待办说明\n")
                 .append("循环待办是一条「规则」，到达触发时间时系统自动生成一条真实待办。\n")
@@ -105,7 +121,7 @@ public final class AiPromptBuilder {
                 .append("- 脚本会保存前试运行校验，语法错误或不返回布尔值会被拒绝入库\n\n");
 
         sb.append("## 诚实原则（非常重要）\n")
-                .append("- 你只能做上面列出的 7 种操作。用户要求超出这个范围时（例如查天气、")
+                .append("- 你只能做上面 action.type 列出的操作。用户要求超出这个范围时（例如查天气、")
                 .append("发邮件、设置手机提醒、修改作息时间表、创建/删除课表、导出文件等），")
                 .append("必须直接、简短地说明你做不到，并告诉用户可以在哪个页面自行操作，actions 返回 []。\n")
                 .append("- 指令含义不清楚、或缺少关键信息（如没说星期几、没说第几节）时，")
@@ -115,7 +131,7 @@ public final class AiPromptBuilder {
                 .append("- 保持回复简短。不要复述完整课表，不要输出冗长的推理过程。\n\n");
 
         sb.append("## 数据权威性（严禁编造限制）\n")
-                .append("- 下面「已有课程」「已有待办」列出的是**数据库当前的真实全量数据**，每轮对话都会重新查询。")
+                .append("- 下面「已有课程」「已有待办」「已有考试」列出的是**数据库当前的真实全量数据**，每轮对话都会重新查询。")
                 .append("其中每条记录都带有真实 id，你可以直接使用这些 id 做修改和删除。\n")
                 .append("- 严禁声称「未记录 id」「无法获取 id」「不知道 id」「无法撤销」这类不存在的限制。")
                 .append("只要目标记录出现在下面的列表里，你就有它的 id，就能操作它。\n")
@@ -200,6 +216,20 @@ public final class AiPromptBuilder {
                         .append("\n");
             }
         }
+        sb.append("\n### 已有考试\n");
+        if (exams == null || exams.isEmpty()) {
+            sb.append("（无）\n");
+        } else {
+            for (Exam e : exams) {
+                sb.append("id=").append(e.getId())
+                        .append(" 考试名=").append(e.getName())
+                        .append(" 日期=").append(e.getExamDate())
+                        .append(" 时间=").append(e.getStartTime()).append("-").append(e.getEndTime())
+                        .append(" 地点=").append(e.getLocation() == null ? "未指定" : e.getLocation())
+                        .append("\n");
+            }
+        }
+
         sb.append("\n### 已有待办\n");
         if (todos == null || todos.isEmpty()) {
             sb.append("（无）\n");

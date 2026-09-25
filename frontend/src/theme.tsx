@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { theme as antdTheme, ConfigProvider } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
+import { useFont } from './store/FontContext'
 
 type Mode = 'light' | 'dark'
 
@@ -57,6 +58,7 @@ const TOKENS = {
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [mode, setMode] = useState<Mode>(getInitialMode)
+  const { globalScale } = useFont()
 
   useEffect(() => {
     document.documentElement.dataset.theme = mode
@@ -71,7 +73,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         locale={zhCN}
         theme={{
           algorithm: mode === 'dark' ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
-          token: TOKENS[mode],
+          token: { ...TOKENS[mode], fontSize: Math.round(13 * globalScale) },
           components: {
             Layout: {
               headerBg: mode === 'dark' ? '#2d2d2d' : '#2d2d2d',
@@ -93,7 +95,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
             },
             Card: {
               headerBg: mode === 'dark' ? '#363636' : '#fafaf7',
-              headerFontSize: 14,
+              headerFontSize: Math.round(14 * globalScale),
             },
             Modal: {
               headerBg: mode === 'dark' ? '#242424' : '#ffffff',
