@@ -26,5 +26,8 @@ tmp/
 # 敏感凭据（DB密码、API Key、DeepSeek Key 等，勿提交到公开仓库）
 docs/CREDENTIALS.md
 
+# 内部整改文档（不对外发布）
+docs/OPEN_SOURCE_PREP.md
+
 # 设计参考（含 node_modules、dist 与嵌套 .git，不提交）
 UIdesign/

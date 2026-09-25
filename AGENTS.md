@@ -247,7 +247,7 @@ export ANDROID_HOME="$HOME/Library/Android/sdk"
 ### MySQL 连接
 
 **Host**: `localhost:3306` / **Database**: `timetable`
-- 本地开发用 `application-local.yml`（datasource 密码 `<REDACTED_PASSWORD>`，且 `sql.init.mode=never`，
+- 本地开发用 `application-local.yml`（datasource 密码读环境变量 `TANGENT_COMMON_PASSWORD`，且 `sql.init.mode=never`，
   故本地 schema 变更需**手动 ALTER**）
 - 生产用 `application-prod.yml`（`sql.init.mode=always`，启动自动建表）
 
@@ -375,7 +375,7 @@ Controller → Service (接口) → ServiceImpl → Mapper (MyBatis-Plus)
 | P5 Android 灵动岛 | FocusNotification + Shizuku + LiveUpdate | *⚠️ 代码在，需真机 + Shizuku 验证* |
 | P6 Mac 小组件 | SwiftUI Notification Center Widget | *未开始* |
 
-> **生产部署已完成**：站点 https://todo.tangent0712.top，后端跑在 <REDACTED_SERVER_IP>:8200。
+> **生产部署已完成**：站点 https://todo.tangent0712.top，后端跑在 `<YOUR_SERVER_IP>:8200`。
 > 部署与运维见 `docs/DEPLOYMENT.md`，全部账号/密钥见 `docs/CREDENTIALS.md`（敏感，勿提交）。
 >
 > **⚠️ Android 客户端状态（2026-08-08）**：`android/` 代码结构齐全（Gradle 8.13 Wrapper +

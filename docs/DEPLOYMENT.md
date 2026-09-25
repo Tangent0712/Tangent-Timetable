@@ -1,6 +1,6 @@
 # 生产部署指南
 
-> 目标服务器：`<REDACTED_SERVER_IP>`（宝塔面板 + Nginx + MySQL）
+> 目标服务器：`<YOUR_SERVER_IP>`（宝塔面板 + Nginx + MySQL）
 > 站点：**https://todo.tangent0712.top**
 > 更新日期：2026-08-07
 
@@ -33,7 +33,7 @@ MySQL 数据库 timetable  （独立库 + 专用账号）
 
 ```bash
 # 本地 ~/.ssh/config 已配置别名
-ssh tangent-server          # admin@<REDACTED_SERVER_IP>，免密 sudo
+ssh tangent-server          # admin@<YOUR_SERVER_IP>，免密 sudo
 ```
 
 ---
@@ -100,8 +100,8 @@ ssh tangent-server 'sudo rm -rf /www/wwwroot/todo.tangent0712.top/assets \
 # 登录 timetable 库（专用账号）
 mysql -utimetable -p'<密码>' timetable
 
-# 或 root
-mysql -uroot -p<REDACTED_PASSWORD> timetable
+# 或 root（密码读环境变量 TANGENT_COMMON_PASSWORD）
+mysql -uroot -p"$TANGENT_COMMON_PASSWORD" timetable
 ```
 
 新增用户（见 CREDENTIALS.md）：
