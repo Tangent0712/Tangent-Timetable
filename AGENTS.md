@@ -181,6 +181,8 @@ cd frontend
 npm install          # 首次
 npm run dev          # 开发服务器 http://localhost:5173，/api 代理到 :8080
 npm run typecheck    # tsc --noEmit
+npm run lint         # ESLint
+npm run format       # Prettier 格式化
 npm run build        # tsc -b && vite build → dist/
 ```
 
@@ -339,8 +341,8 @@ Controller → Service (接口) → ServiceImpl → Mapper (MyBatis-Plus)
 
 #### 1. 已知问题 / 可改进
 
-- [ ] 前端打包体积 1.3MB（gzip 420KB），未做代码分割，
-      可用 `manualChunks` 拆分 antd
+- [x] 前端已做代码分割（`manualChunks` 拆分 react/antd vendor）；
+      主包约 98KB，antd chunk 约 1.15MB（gzip 360KB），可进一步按需引入
 - [ ] `MAX_CATCH_UP=5` 是硬编码，长期停机后会丢失更早的循环期次
 - [ ] AI 幻觉无法根除，只能靠 Prompt 约束；
       执行层有所有权校验兜底，编造 id 只会 404
