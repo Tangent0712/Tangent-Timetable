@@ -16,9 +16,9 @@ jobs:
           java-version: '17'
           cache: maven
           cache-dependency-path: backend/pom.xml
-      - name: Build backend
+      - name: Test and build backend
         working-directory: backend
-        run: ./mvnw -B -DskipTests package
+        run: ./mvnw -B package
 
   frontend:
     runs-on: ubuntu-latest
