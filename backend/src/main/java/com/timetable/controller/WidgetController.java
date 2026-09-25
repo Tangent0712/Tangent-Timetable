@@ -14,8 +14,8 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 /**
- * 桌面小组件展示接口（只读，key 通过 URL 传入）。
- * 小组件不可点击、不可输入，展示页每 60 秒轮询一次，
+ * 小组件 / WebView 展示接口（只读，key 通过 URL 传入）。
+ * 由 WebView 宿主（iPad 小组件、Android 全屏应用）加载，展示页每 60 秒轮询一次，
  * 每次请求都实时聚合最新数据返回。
  * 免鉴权拦截器（见 WebMvcConfig），key 在此手动校验。
  */

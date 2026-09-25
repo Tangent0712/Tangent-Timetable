@@ -1,25 +1,34 @@
-# iPad 小组件（WebView 方案）
+# WebView 小组件 / 全屏应用
 
 > 更新日期：2026-09-26
 
-「大切课程表」支持在 iPad 桌面小组件中查看课程与待办。实现方式不是原生 Widget，
-而是在 iPad 端用 **WebView 组件加载一个只读展示页**，展示页再通过 **RESTful 接口**
-获取数据。这样一份数据、一份 UI，Web 与 iPad 共用同一套实现，无需维护原生客户端。
+「大切课程表」支持在 iPad 桌面小组件或 Android 上以 **WebView** 访问只读视图。
+
+**iPad 与 Android 采用同一套方案**：由一个 WebView 宿主加载只读展示页 `/widget`，展示页再通过
+**RESTful 接口**获取数据。宿主可以是：
+
+- **iPad**：支持加载网页的桌面小组件（WebView 组件）；
+- **Android**：全屏应用，或支持加载网页的桌面小组件。
+
+本质都是「用 WebView 打开一个网页」，因此**无需维护任何原生客户端**：一份数据、一份 UI，
+Web 与各 WebView 宿主共用同一套实现。
 
 ---
 
 ## 1. 整体链路
 
 ```
-iPad 桌面小组件 (WebView 组件)
-   │  加载  https://<站点>/widget?key=<APIKEY>&scheduleId=<ID>
-   ▼
+WebView 宿主
+  ├─ iPad：桌面小组件（WebView 组件）
+  └─ Android：全屏应用 / 桌面小组件（WebView）
+        │  加载  https://<站点>/widget?key=<APIKEY>&scheduleId=<ID>
+        ▼
 前端展示页  /widget  (WidgetPreviewPage.tsx，公开只读，无需登录)
-   │  fetch  每 60 秒轮询 + 页面可见时刷新
-   ▼
+        │  fetch  每 60 秒轮询 + 页面可见时刷新
+        ▼
 后端接口  GET /api/widget/overview/{key}?scheduleId=<ID>
-   │  实时聚合
-   ▼
+        │  实时聚合
+        ▼
 紧凑 JSON（今日课程 / 考试 / 待办 / 周次）
 ```
 
@@ -35,7 +44,7 @@ iPad 桌面小组件 (WebView 组件)
   | `scheduleId` | 否 | 指定课表；不传则默认该账号第一个课表 |
 - 行为：每 60 秒轮询一次；`visibilitychange` / 窗口 `focus` 时立即刷新。
 - 样式：暗色只读双栏布局（左：课程与考试；右：待办与 DDL 倒计时），样式在 `index.css` 的 `.widget-*`。
-- 设置页「iPad 小组件网页地址」卡片可一键复制带 `key` 与当前课表的完整地址。
+- 设置页「小组件 / WebView 网页地址」卡片可一键复制带 `key` 与当前课表的完整地址。
 
 ---
 
@@ -79,19 +88,29 @@ GET /api/widget/overview/{key}?scheduleId={id}
 }
 ```
 
-- 数据为空时返回空数组，`empty=true`，前端显示「今天没有课 / 暂无待办」，不报错。
+- 数据为空时返回空数组，`empty=true`，展示页显示「今天没有课 / 暂无待办」，不报错。
 
 ---
 
-## 4. 在 iPad 上配置
+## 4. 配置
 
-1. 在 Web 端「设置 → iPad 小组件网页地址」选择课表，点击**一键复制**，得到形如
+### 4.1 通用步骤
+
+1. 在 Web 端「设置 → 小组件 / WebView 网页地址」选择课表，点击**一键复制**，得到形如
    `https://<站点>/widget?key=xxx&scheduleId=1` 的地址。
-2. 在 iPad 上使用支持加载网页（WebView）的小组件 App，新建一个中号（4×2）小组件，
-   把该地址填入。
-3. 小组件即加载该只读页面，展示今日课程、考试与待办。
+2. 在宿主（iPad 小组件 / Android 全屏应用）中新建 WebView，把该地址填入。
+3. WebView 即加载该只读页面，展示今日课程、考试与待办。
 
 > 该地址包含你的 API Key，仅供本人使用，请勿公开分享。
+
+### 4.2 iPad
+
+使用支持加载网页（WebView）的桌面小组件 App，新建一个中号（4×2）小组件，填入上述地址。
+
+### 4.3 Android
+
+使用全屏应用，或支持加载网页（WebView）的桌面小组件，填入上述地址即可。
+Android 端不需要单独的课程表/待办原生实现——它只是这个只读页面的一个 WebView 容器。
 
 ---
 
@@ -111,4 +130,4 @@ GET /api/widget/overview/{key}?scheduleId={id}
 - [ ] 响应体精简，字段简短，适合小组件展示。
 - [ ] 无效 Key 返回 401；空数据不报错。
 - [ ] 展示页每 60 秒自动刷新，页面重新可见时立即刷新。
-- [ ] 小组件中暗色布局正常，无横向溢出。
+- [ ] 宿主（iPad 小组件 / Android 全屏）中暗色布局正常，无横向溢出。

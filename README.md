@@ -19,8 +19,8 @@
   多轮对话、SSE 流式输出；所有写操作以「提案卡片」形式逐条确认后执行，
   并有工作空间隔离与提案失效机制防止数据错乱。
 - **体验**：深浅色主题、全局与课表字体缩放、响应式布局（移动端自适应）。
-- **iPad 小组件（附加）**：用 WebView 组件加载 `/widget` 只读展示页，通过 RESTful 接口
-  每 60 秒刷新课程与待办（页面可见时）。
+- **WebView 小组件 / 全屏应用（附加）**：iPad 桌面小组件与 Android 全屏应用均以 WebView
+  加载 `/widget` 只读展示页，经 RESTful 接口每 60 秒刷新课程与待办（同一套方案，无需原生客户端）。
 
 ## 技术栈
 
@@ -54,7 +54,7 @@ Tangent-Timetable/
 │   ├── ARCHITECTURE.md      # 架构说明
 │   ├── DEPLOYMENT.md        # 部署指南
 │   ├── USER_MANUAL.md       # 用户手册
-│   └── IPAD_WEBVIEW_WIDGET.md
+│   └── WEBVIEW_WIDGET.md   # WebView 小组件 / 全屏应用
 ├── AGENTS.md                # 开发指南（含完整接口清单）
 ├── README.md / LICENSE / CONTRIBUTING.md
 └── .editorconfig / .env.example
@@ -137,7 +137,7 @@ npm run dev        # http://localhost:5173，/api 已代理到 :8080
 - 架构说明：[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - 部署指南：[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
 - 用户手册：[docs/USER_MANUAL.md](docs/USER_MANUAL.md)
-- iPad 小组件：[docs/IPAD_WEBVIEW_WIDGET.md](docs/IPAD_WEBVIEW_WIDGET.md)
+- WebView 小组件 / 全屏应用：[docs/WEBVIEW_WIDGET.md](docs/WEBVIEW_WIDGET.md)
 
 ## License
 

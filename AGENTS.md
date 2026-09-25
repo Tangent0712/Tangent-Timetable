@@ -12,7 +12,7 @@
 - **详细需求**: `docs/PRD.md`
 - **架构说明**: `docs/ARCHITECTURE.md`
 - **用户手册**: `docs/USER_MANUAL.md`
-- **iPad 小组件**: `docs/IPAD_WEBVIEW_WIDGET.md`
+- **WebView 小组件/全屏应用**: `docs/WEBVIEW_WIDGET.md`
 - **部署**: `docs/DEPLOYMENT.md`
 - **账号与密钥**: 通过环境变量注入（见 `.env.example`），勿提交到仓库
 
@@ -42,7 +42,7 @@ Tangent-Timetable/
 │   ├── ARCHITECTURE.md                     # 架构说明
 │   ├── DEPLOYMENT.md                       # 部署与运维指南
 │   ├── USER_MANUAL.md                      # 用户手册
-│   └── IPAD_WEBVIEW_WIDGET.md              # iPad WebView 小组件说明
+│   └── WEBVIEW_WIDGET.md                   # WebView 小组件 / 全屏应用说明
 ├── AGENTS.md                               # 本文件
 ├── backend/                                # Spring Boot 后端
 │   ├── mvnw / .mvn/                        # Maven Wrapper
@@ -273,7 +273,7 @@ npm run build        # tsc -b && vite build → dist/
 | POST | `/api/ai/conversations/{id}/actions/{actionId}/execute` | 确认执行单个提案 |
 | POST | `/api/ai/conversations/{id}/actions/{actionId}/reject` | 取消单个提案 |
 | POST | `/api/ai/parse-html?scheduleId=` | 解析教务 HTML → `{courses, note}` |
-| GET | `/api/widget/overview/{key}?scheduleId=` | iPad 小组件只读聚合（免鉴权，key 路径传入） |
+| GET | `/api/widget/overview/{key}?scheduleId=` | WebView 小组件/全屏应用只读聚合（免鉴权，key 路径传入） |
 
 ### 统一响应格式
 
@@ -332,7 +332,7 @@ Controller → Service (接口) → ServiceImpl → Mapper (MyBatis-Plus)
 | P2.6 自定义循环规则 | Rhino 沙箱脚本引擎 | **已完成** |
 | P2.7 考试记录 | 直接输入起止时间、课表红色块展示、独立考试、自动关联待办、AI 增删改查 | **已完成** |
 | P2.8 前端体验 | 响应式窄屏布局、字体大小设置、用户手册页、作息时间表只读权限 | **已完成** |
-| P2.9 iPad 小组件 | WebView 加载 `/widget` 展示页 + RESTful 接口 | **已完成** |
+| P2.9 WebView 小组件/全屏应用 | iPad/Android 以 WebView 加载 `/widget` 展示页 + RESTful 接口 | **已完成** |
 
 > **已部署上线**：生产环境部署与运维见 `docs/DEPLOYMENT.md`；账号与密钥通过环境变量注入，勿提交到仓库。
 

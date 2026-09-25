@@ -53,7 +53,7 @@ export default function SettingsPage() {
   const [rows, setRows] = useState<PeriodConfig[]>([])
   const [widgetKey] = useState(() => getApiKey() ?? '')
 
-  // iPad 小组件网页地址（含 key 与当前课表）
+  // WebView 展示页地址（含 key 与当前课表）
   const widgetPageUrl = `${WIDGET_API_BASE}/widget?key=${encodeURIComponent(widgetKey)}${
     activeScheduleId ? `&scheduleId=${activeScheduleId}` : ''
   }`
@@ -194,7 +194,7 @@ export default function SettingsPage() {
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
       <Card
-        title="iPad 小组件网页地址"
+        title="小组件 / WebView 网页地址"
         extra={
           <Button type="primary" icon={<CopyOutlined />} onClick={copyWidgetApi}>
             一键复制
@@ -205,7 +205,7 @@ export default function SettingsPage() {
           <Alert
             type="info"
             showIcon
-            message="复制下面的网页地址，填入 iPad 上支持加载网页（WebView）的小组件 App，即可在桌面 4×2 小组件中直接展示本课表的课程与待办。"
+            message="复制下面的网页地址，用支持加载网页（WebView）的宿主打开：iPad 可用桌面小组件，Android 可用全屏应用或小组件，即可展示本课表的课程与待办。"
           />
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <Typography.Text strong>选择课表</Typography.Text>
