@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Dropdown, Select, Tag, Tooltip } from 'antd'
+import { Dropdown, message, Select, Tag, Tooltip } from 'antd'
 import {
   BookOutlined,
   CalendarOutlined,
@@ -77,7 +77,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           <Tooltip title="立即同步">
             <div
               className="icon-btn-round"
-              onClick={() => refreshAll()}
+              onClick={() => refreshAll().catch(() => message.error('同步失败，请稍后重试'))}
               style={{ opacity: loading ? 0.5 : 1, pointerEvents: loading ? 'none' : 'auto' }}
             >
               <ReloadOutlined spin={loading} />

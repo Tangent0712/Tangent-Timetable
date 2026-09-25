@@ -1,8 +1,10 @@
 import dayjs, { type Dayjs } from 'dayjs'
+import customParseFormat from 'dayjs/plugin/customParseFormat'
 import isoWeek from 'dayjs/plugin/isoWeek'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import 'dayjs/locale/zh-cn'
 
+dayjs.extend(customParseFormat)
 dayjs.extend(isoWeek)
 dayjs.extend(relativeTime)
 dayjs.locale('zh-cn')

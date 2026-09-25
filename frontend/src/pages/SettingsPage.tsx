@@ -27,6 +27,12 @@ const TIME_FORMAT = 'HH:mm'
 /** 小组件展示页基于当前站点地址生成，随部署环境自动适配 */
 const WIDGET_API_BASE = window.location.origin
 
+/** 可编辑全局作息时间表的账号 label（前端仅做 UI 限制，后端同样校验） */
+const ADMIN_LABELS = (import.meta.env.VITE_ADMIN_LABELS ?? 'Tangent0712')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean)
+
 const CATEGORY_OPTIONS: { value: PeriodCategory; label: string }[] = [
   { value: 'MORNING', label: '上午' },
   { value: 'AFTERNOON', label: '下午' },
@@ -65,8 +71,8 @@ export default function SettingsPage() {
     }
   }
 
-  // 作息时间表仅 Tangent0712 可编辑，其余用户只读
-  const canEdit = label === 'Tangent0712'
+  // 作息时间表仅管理员账号可编辑，其余用户只读
+  const canEdit = ADMIN_LABELS.includes(label)
   const [saving, setSaving] = useState(false)
   const [dirty, setDirty] = useState(false)
 

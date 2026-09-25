@@ -76,7 +76,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
           token: { ...TOKENS[mode], fontSize: Math.round(13 * globalScale) },
           components: {
             Layout: {
-              headerBg: mode === 'dark' ? '#2d2d2d' : '#2d2d2d',
+              headerBg: '#2d2d2d',
               siderBg: mode === 'dark' ? '#363636' : '#fafaf7',
               bodyBg: mode === 'dark' ? '#1a1a1a' : '#f5f0eb',
               footerBg: mode === 'dark' ? '#111111' : '#f0ebe4',

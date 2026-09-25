@@ -139,7 +139,7 @@ function recurringLine(r: Dict): string {
       when = `每天 ${time}`
       break
     case 'WEEKLY':
-      when = `每${weekDayName(Number(r.dayOfWeek)).replace('周', '周')} ${time}`
+      when = `每${weekDayName(Number(r.dayOfWeek))} ${time}`
       break
     case 'MONTHLY':
       when = `每月 ${r.dayOfMonth} 号 ${time}`

@@ -21,7 +21,7 @@ export function describeFrequency(rule: RecurringTodo): string {
     case 'DAILY':
       return `每天 ${time}`
     case 'WEEKLY':
-      return `每${weekDayName(rule.dayOfWeek ?? 0).replace('周', '周')} ${time}`
+      return `每${weekDayName(rule.dayOfWeek ?? 0)} ${time}`
     case 'MONTHLY':
       return `每月 ${rule.dayOfMonth} 号 ${time}`
     case 'CUSTOM':
