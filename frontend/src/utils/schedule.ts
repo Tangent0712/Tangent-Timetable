@@ -27,7 +27,9 @@ export function currentWeekOf(start: string, date: Dayjs = dayjs()): number {
 }
 
 export function mondayOfWeek(start: string, week: number): Dayjs {
-  return dayjs(start).startOf('isoWeek').add(week - 1, 'week')
+  return dayjs(start)
+    .startOf('isoWeek')
+    .add(week - 1, 'week')
 }
 
 export function dateOfWeekDay(start: string, week: number, dayOfWeek: number): Dayjs {

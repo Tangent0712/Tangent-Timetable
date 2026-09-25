@@ -13,12 +13,7 @@ import {
   message,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import {
-  DeleteOutlined,
-  EditOutlined,
-  PlusOutlined,
-  ThunderboltOutlined,
-} from '@ant-design/icons'
+import { DeleteOutlined, EditOutlined, PlusOutlined, ThunderboltOutlined } from '@ant-design/icons'
 import RecurringFormModal from './RecurringFormModal'
 import { recurringApi } from '../api'
 import { useApp } from '../store/AppContext'
@@ -143,11 +138,7 @@ export default function RecurringTodoPanel() {
       render: (_, rule) => (
         <Space size={0}>
           <Tooltip title="立即生成一条待办">
-            <Button
-              type="text"
-              icon={<ThunderboltOutlined />}
-              onClick={() => triggerNow(rule)}
-            />
+            <Button type="text" icon={<ThunderboltOutlined />} onClick={() => triggerNow(rule)} />
           </Tooltip>
           <Button
             type="text"

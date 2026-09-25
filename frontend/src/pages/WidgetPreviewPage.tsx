@@ -87,27 +87,22 @@ export default function WidgetPreviewPage() {
     }
   }, [])
 
-  const load = useCallback(
-    async (k: string, sid?: number) => {
-      setLoading(true)
-      setError('')
-      try {
-        const path = `/widget/overview/${encodeURIComponent(k)}${
-          sid ? `?scheduleId=${sid}` : ''
-        }`
-        const res = await fetch(`${BASE_URL}${path}`)
-        const payload = await res.json()
-        if (payload.code !== 200) throw new Error(payload.message || '请求失败')
-        setData(payload.data)
-      } catch (e) {
-        const msg = (e as Error).message || '未知错误'
-        setError(msg)
-      } finally {
-        setLoading(false)
-      }
-    },
-    [],
-  )
+  const load = useCallback(async (k: string, sid?: number) => {
+    setLoading(true)
+    setError('')
+    try {
+      const path = `/widget/overview/${encodeURIComponent(k)}${sid ? `?scheduleId=${sid}` : ''}`
+      const res = await fetch(`${BASE_URL}${path}`)
+      const payload = await res.json()
+      if (payload.code !== 200) throw new Error(payload.message || '请求失败')
+      setData(payload.data)
+    } catch (e) {
+      const msg = (e as Error).message || '未知错误'
+      setError(msg)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
   useEffect(() => {
     loadSchedules(apiKey)
@@ -181,10 +176,7 @@ export default function WidgetPreviewPage() {
                           <div className="widget-exam-info">
                             <div className="widget-exam-card-head-row">
                               <div className="widget-course-card-name">{c.name}</div>
-                              <span
-                                className="widget-course-card-status"
-                                data-status={c.status}
-                              >
+                              <span className="widget-course-card-status" data-status={c.status}>
                                 {c.status}
                               </span>
                             </div>
@@ -208,16 +200,12 @@ export default function WidgetPreviewPage() {
                       >
                         <div className="widget-course-card-head">
                           <span className="widget-course-card-name">{c.name}</span>
-                          <span
-                            className="widget-course-card-status"
-                            data-status={c.status}
-                          >
+                          <span className="widget-course-card-status" data-status={c.status}>
                             {c.status}
                           </span>
                         </div>
                         <div className="widget-course-card-meta">
-                          {c.date}·{c.dow}·第{c.week}周
-                          {c.location ? `·${c.location}` : ''}
+                          {c.date}·{c.dow}·第{c.week}周{c.location ? `·${c.location}` : ''}
                         </div>
                         <div className="widget-course-card-meta">
                           {c.period ? `${c.period}·` : ''}

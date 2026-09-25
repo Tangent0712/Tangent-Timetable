@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Button, DatePicker, Form, Input, Modal, Space } from 'antd'
+import { Button, DatePicker, Form, Input, message, Modal, Space } from 'antd'
 import type { Dayjs } from 'dayjs'
 import type { Schedule } from '../types'
 
@@ -40,13 +40,23 @@ export default function ScheduleCreateModal({ open, onCancel, onCreate }: Props)
     try {
       await onCreate(payload)
       onCancel()
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '保存失败')
     } finally {
       setSaving(false)
     }
   }
 
   return (
-    <Modal open={open} maskClosable={false} title="新建课表" onCancel={onCancel} footer={null} width={520} destroyOnClose>
+    <Modal
+      open={open}
+      maskClosable={false}
+      title="新建课表"
+      onCancel={onCancel}
+      footer={null}
+      width={520}
+      destroyOnHidden
+    >
       <Form form={form} layout="vertical" requiredMark={false}>
         <Form.Item
           name="name"
@@ -73,10 +83,7 @@ export default function ScheduleCreateModal({ open, onCancel, onCreate }: Props)
           ]}
           extra="学期开始必须是周一，结束必须是周日"
         >
-          <DatePicker.RangePicker
-            style={{ width: '100%' }}
-            disabledDate={semesterDisabledDate}
-          />
+          <DatePicker.RangePicker style={{ width: '100%' }} disabledDate={semesterDisabledDate} />
         </Form.Item>
         <Space>
           <Button type="primary" loading={saving} onClick={submit}>

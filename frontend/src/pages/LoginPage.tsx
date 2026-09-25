@@ -39,20 +39,10 @@ export default function LoginPage() {
           </div>
         </div>
         <div className="login-card-body">
-          <Typography.Paragraph
-            type="secondary"
-            style={{ fontSize: 12, marginBottom: 16 }}
-          >
+          <Typography.Paragraph type="secondary" style={{ fontSize: 12, marginBottom: 16 }}>
             {'> 输入管理员分配给你的 API Key 以进入你的课程表与待办空间。'}
           </Typography.Paragraph>
-          {error && (
-            <Alert
-              type="error"
-              message={error}
-              showIcon
-              style={{ marginBottom: 16 }}
-            />
-          )}
+          {error && <Alert type="error" message={error} showIcon style={{ marginBottom: 16 }} />}
           <Form layout="vertical" onFinish={onFinish} requiredMark={false}>
             <Form.Item
               name="apiKey"
@@ -73,10 +63,7 @@ export default function LoginPage() {
             </Form.Item>
           </Form>
           <div style={{ textAlign: 'center', marginTop: 16 }}>
-            <Typography.Text
-              type="secondary"
-              style={{ fontSize: 9, letterSpacing: 0.5 }}
-            >
+            <Typography.Text type="secondary" style={{ fontSize: 9, letterSpacing: 0.5 }}>
               ૮₍◜ෆ◝.₎ა © 2026 大切课程表 ˶ˊᜊˋ˶
             </Typography.Text>
           </div>

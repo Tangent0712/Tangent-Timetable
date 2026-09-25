@@ -68,13 +68,7 @@ function shouldTrigger(ctx) {
 }
 `
 
-export default function RecurringFormModal({
-  open,
-  rule,
-  saving,
-  onCancel,
-  onSubmit,
-}: Props) {
+export default function RecurringFormModal({ open, rule, saving, onCancel, onSubmit }: Props) {
   const [form] = Form.useForm<FormValues>()
   const [frequency, setFrequency] = useState<RecurringFrequency>('WEEKLY')
   const [preview, setPreview] = useState<{ trigger?: Dayjs; total: number }>({ total: 0 })
@@ -118,8 +112,7 @@ export default function RecurringFormModal({
   // 实时预览：触发时刻 -> 截止时刻
   const refreshPreview = () => {
     const v = form.getFieldsValue()
-    const total =
-      (v.offsetDays ?? 0) * 1440 + (v.offsetHours ?? 0) * 60 + (v.offsetMinutes ?? 0)
+    const total = (v.offsetDays ?? 0) * 1440 + (v.offsetHours ?? 0) * 60 + (v.offsetMinutes ?? 0)
     setPreview({ trigger: v.triggerTime, total })
   }
 
@@ -180,8 +173,7 @@ export default function RecurringFormModal({
 
   const handleOk = async () => {
     const v = await form.validateFields()
-    const total =
-      (v.offsetDays ?? 0) * 1440 + (v.offsetHours ?? 0) * 60 + (v.offsetMinutes ?? 0)
+    const total = (v.offsetDays ?? 0) * 1440 + (v.offsetHours ?? 0) * 60 + (v.offsetMinutes ?? 0)
     if (total <= 0) {
       form.setFields([{ name: 'offsetDays', errors: ['截止时间必须晚于触发时间'] }])
       return
@@ -215,14 +207,9 @@ export default function RecurringFormModal({
       okText="保存"
       cancelText="取消"
       width={680}
-      destroyOnClose
+      destroyOnHidden
     >
-      <Form
-        form={form}
-        layout="vertical"
-        requiredMark={false}
-        onValuesChange={refreshPreview}
-      >
+      <Form form={form} layout="vertical" requiredMark={false} onValuesChange={refreshPreview}>
         <Form.Item
           name="title"
           label="待办标题"
@@ -303,17 +290,16 @@ export default function RecurringFormModal({
             rules={[{ required: true, message: '请填写脚本' }]}
             extra={
               <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                用 JavaScript 编写 <code>shouldTrigger(ctx)</code> 函数，返回{' '}
-                <code>true</code> 表示此刻触发。系统每分钟执行一次，只能用纯 JS，
-                不能访问 Java / IO。下方「测试脚本」可校验语法并查看此刻是否会触发。
+                用 JavaScript 编写 <code>shouldTrigger(ctx)</code> 函数，返回 <code>true</code>{' '}
+                表示此刻触发。系统每分钟执行一次，只能用纯 JS， 不能访问 Java /
+                IO。下方「测试脚本」可校验语法并查看此刻是否会触发。
               </Typography.Text>
             }
           >
             <Input.TextArea
               rows={14}
               style={{
-                fontFamily:
-                  'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
                 fontSize: 13,
               }}
               spellCheck={false}

@@ -41,8 +41,15 @@ interface StreamState {
 }
 
 export default function AiChatPage() {
-  const { activeSchedule, activeScheduleId, schedules, courses, todos, refreshCourses, refreshTodos } =
-    useApp()
+  const {
+    activeSchedule,
+    activeScheduleId,
+    schedules,
+    courses,
+    todos,
+    refreshCourses,
+    refreshTodos,
+  } = useApp()
 
   const [enabled, setEnabled] = useState<boolean | null>(null)
   const [conversations, setConversations] = useState<AiConversation[]>([])
@@ -69,8 +76,8 @@ export default function AiChatPage() {
     currentConv?.scheduleId != null && currentConv.scheduleId !== activeScheduleId
   const convScheduleName =
     currentConv?.scheduleId != null
-      ? schedules.find((s) => s.id === currentConv?.scheduleId)?.name ??
-        `课表#${currentConv.scheduleId}`
+      ? (schedules.find((s) => s.id === currentConv?.scheduleId)?.name ??
+        `课表#${currentConv.scheduleId}`)
       : null
 
   const patchStream = useCallback((convId: number, patch: Partial<StreamState>) => {
@@ -214,9 +221,7 @@ export default function AiChatPage() {
   }
 
   const toggleDeleteSelect = (id: number) => {
-    setDeleteSelected((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-    )
+    setDeleteSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
   }
 
   const doBatchDelete = async () => {
@@ -339,7 +344,15 @@ export default function AiChatPage() {
         size="small"
         title="对话记录"
         style={{ width: 240, flexShrink: 0, display: 'flex', flexDirection: 'column' }}
-        bodyStyle={{ overflowY: 'auto', overflowX: 'hidden', flex: 1, minHeight: 0, padding: '8px 12px' }}
+        styles={{
+          body: {
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            flex: 1,
+            minHeight: 0,
+            padding: '8px 12px',
+          },
+        }}
         extra={
           listMode === 'normal' ? (
             <Space size={2}>
@@ -427,16 +440,18 @@ export default function AiChatPage() {
                     <Input
                       size="small"
                       value={edits[conv.id] ?? ''}
-                      onChange={(e) =>
-                        setEdits((prev) => ({ ...prev, [conv.id]: e.target.value }))
-                      }
+                      onChange={(e) => setEdits((prev) => ({ ...prev, [conv.id]: e.target.value }))}
                       onClick={(e) => e.stopPropagation()}
                       style={{ width: '100%' }}
                     />
                   ) : (
                     <Typography.Text
                       ellipsis
-                      style={listMode === 'delete' ? { maxWidth: 140, flex: 1 } : { maxWidth: 180, flex: 1 }}
+                      style={
+                        listMode === 'delete'
+                          ? { maxWidth: 140, flex: 1 }
+                          : { maxWidth: 180, flex: 1 }
+                      }
                     >
                       {conv.title || '新对话'}
                     </Typography.Text>
@@ -452,7 +467,9 @@ export default function AiChatPage() {
       <Card
         size="small"
         style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}
-        bodyStyle={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, padding: 16 }}
+        styles={{
+          body: { flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, padding: 16 },
+        }}
         title={
           <Space wrap={false}>
             <Button
@@ -495,8 +512,8 @@ export default function AiChatPage() {
             message="工作空间不一致"
             description={`该对话属于「${
               currentConv?.scheduleId != null
-                ? schedules.find((s) => s.id === currentConv?.scheduleId)?.name ??
-                  `课表#${currentConv.scheduleId}`
+                ? (schedules.find((s) => s.id === currentConv?.scheduleId)?.name ??
+                  `课表#${currentConv.scheduleId}`)
                 : '某课表'
             }」，与当前课表「${
               activeSchedule?.name ?? '未选择'
@@ -518,11 +535,7 @@ export default function AiChatPage() {
                     <span>用一句话管理课表和待办，支持一次做多件事</span>
                     <Space wrap style={{ justifyContent: 'center' }}>
                       {EXAMPLES.map((ex, i) => (
-                        <Typography.Text
-                          key={i}
-                          className="example-chip"
-                          type="secondary"
-                        >
+                        <Typography.Text key={i} className="example-chip" type="secondary">
                           {ex}
                         </Typography.Text>
                       ))}

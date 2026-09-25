@@ -19,18 +19,15 @@ export async function streamMessage(
   signal?: AbortSignal,
 ): Promise<AiMessage> {
   const key = getApiKey()
-  const res = await fetch(
-    `${BASE_URL}/ai/conversations/${conversationId}/messages/stream`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(key ? { 'X-API-Key': key } : {}),
-      },
-      body: JSON.stringify({ content, scheduleId }),
-      signal,
+  const res = await fetch(`${BASE_URL}/ai/conversations/${conversationId}/messages/stream`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(key ? { 'X-API-Key': key } : {}),
     },
-  )
+    body: JSON.stringify({ content, scheduleId }),
+    signal,
+  })
 
   if (!res.ok || !res.body) {
     throw new Error(`请求失败 (HTTP ${res.status})`)

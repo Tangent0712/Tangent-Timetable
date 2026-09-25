@@ -49,10 +49,7 @@ export interface Exam {
   updatedAt?: string
 }
 
-export type ExamPayload = Omit<
-  Exam,
-  'id' | 'scheduleId' | 'createdAt' | 'updatedAt'
->
+export type ExamPayload = Omit<Exam, 'id' | 'scheduleId' | 'createdAt' | 'updatedAt'>
 
 export interface Todo {
   id: number
@@ -85,10 +82,7 @@ export interface RecurringTodo {
   nextTriggerAt: string | null
 }
 
-export type RecurringTodoPayload = Omit<
-  RecurringTodo,
-  'id' | 'lastTriggeredAt' | 'nextTriggerAt'
->
+export type RecurringTodoPayload = Omit<RecurringTodo, 'id' | 'lastTriggeredAt' | 'nextTriggerAt'>
 
 /** GET /api/recurring-todos/script-template 的返回 */
 export interface RecurringScriptTemplate {
@@ -111,11 +105,6 @@ export interface PeriodConfig {
   startTime: string
   endTime: string
   category: PeriodCategory
-}
-
-export interface ScheduleDetail {
-  schedule: Schedule
-  courses: Course[]
 }
 
 export type AiActionType =

@@ -1,14 +1,5 @@
 import { useMemo, useState } from 'react'
-import {
-  Button,
-  Card,
-  Empty,
-  Input,
-  Popconfirm,
-  Space,
-  Tag,
-  Typography,
-} from 'antd'
+import { Button, Card, Empty, Input, Popconfirm, Space, Tag, Typography } from 'antd'
 import { DeleteOutlined, EditOutlined, SearchOutlined } from '@ant-design/icons'
 import type { Course } from '../types'
 import { courseColor } from '../utils/color'
@@ -45,10 +36,7 @@ export default function CourseListView({ courses, onEdit, onDelete }: Props) {
 
   return (
     <Card size="small">
-      <Space
-        style={{ marginBottom: 12, justifyContent: 'space-between', width: '100%' }}
-        wrap
-      >
+      <Space style={{ marginBottom: 12, justifyContent: 'space-between', width: '100%' }} wrap>
         <Input
           prefix={<SearchOutlined />}
           placeholder="搜索课程名 / 地点 / 教师"
@@ -81,7 +69,9 @@ export default function CourseListView({ courses, onEdit, onDelete }: Props) {
                 </div>
                 <div className="course-card-meta">
                   <Tag>{weekDayName(c.dayOfWeek)}</Tag>
-                  <span>第 {c.startPeriod}-{c.endPeriod} 节</span>
+                  <span>
+                    第 {c.startPeriod}-{c.endPeriod} 节
+                  </span>
                 </div>
                 <div className="course-card-line">
                   <span className="course-card-label">周次</span>

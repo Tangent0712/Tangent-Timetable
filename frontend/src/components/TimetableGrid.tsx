@@ -37,11 +37,7 @@ interface GridItem {
 
 /** 判断两个单元的时间段是否重叠 */
 function overlaps(a: GridItem, b: GridItem): boolean {
-  return (
-    a.dayOfWeek === b.dayOfWeek &&
-    a.startPeriod <= b.endPeriod &&
-    b.startPeriod <= a.endPeriod
-  )
+  return a.dayOfWeek === b.dayOfWeek && a.startPeriod <= b.endPeriod && b.startPeriod <= a.endPeriod
 }
 
 /**
@@ -52,9 +48,7 @@ function overlaps(a: GridItem, b: GridItem): boolean {
  * 选取规则：先按开始节次，再按 id，保证稳定且可预测。
  */
 function resolveConflicts(items: GridItem[]): Placed[] {
-  const sorted = [...items].sort(
-    (a, b) => a.startPeriod - b.startPeriod || a.id - b.id,
-  )
+  const sorted = [...items].sort((a, b) => a.startPeriod - b.startPeriod || a.id - b.id)
   const result: Placed[] = []
 
   for (const item of sorted) {
@@ -238,7 +232,9 @@ export default function TimetableGrid({
                   <div>
                     <div>{exam.name}</div>
                     <div>日期:{exam.examDate}</div>
-                    <div>时间:{exam.startTime?.slice(0, 5)}-{exam.endTime?.slice(0, 5)}</div>
+                    <div>
+                      时间:{exam.startTime?.slice(0, 5)}-{exam.endTime?.slice(0, 5)}
+                    </div>
                     <div>地点:{exam.location || '未指定'}</div>
                   </div>
                 }
@@ -254,9 +250,7 @@ export default function TimetableGrid({
                     <span>{exam.startTime?.slice(0, 5)}</span>
                     <span>{exam.endTime?.slice(0, 5)}</span>
                   </div>
-                  {exam.location && (
-                    <div className="course-block-meta">{exam.location}</div>
-                  )}
+                  {exam.location && <div className="course-block-meta">{exam.location}</div>}
                 </div>
               </Tooltip>
             </div>,
@@ -268,11 +262,7 @@ export default function TimetableGrid({
         const course = item.course!
         const color = courseColor(course.name)
         cells.push(
-          <div
-            key={`c-${key}`}
-            className={`tt-cell${spanDiv}`}
-            style={{ gridRow: `span ${span}` }}
-          >
+          <div key={`c-${key}`} className={`tt-cell${spanDiv}`} style={{ gridRow: `span ${span}` }}>
             <Tooltip
               title={
                 <div>
@@ -318,12 +308,8 @@ export default function TimetableGrid({
                   </span>
                 )}
                 <div className="course-block-name">{course.name}</div>
-                {course.location && (
-                  <div className="course-block-meta">{course.location}</div>
-                )}
-                {course.teacher && (
-                  <div className="course-block-meta">{course.teacher}</div>
-                )}
+                {course.location && <div className="course-block-meta">{course.location}</div>}
+                {course.teacher && <div className="course-block-meta">{course.teacher}</div>}
               </div>
             </Tooltip>
           </div>,

@@ -154,19 +154,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false)
     }
-  }, [refreshCourses, refreshExams, refreshPeriods, refreshRecurring, refreshSchedules, refreshTodos])
+  }, [
+    refreshCourses,
+    refreshExams,
+    refreshPeriods,
+    refreshRecurring,
+    refreshSchedules,
+    refreshTodos,
+  ])
 
-  const login = useCallback(
-    async (key: string) => {
-      const result = await authApi.verify(key)
-      if (!result.valid) throw new Error('API Key 无效')
-      persistApiKey(key, result.label, result.avatarUrl)
-      setLabel(result.label)
-      setAvatarUrl(result.avatarUrl ?? null)
-      setAuthed(true)
-    },
-    [],
-  )
+  const login = useCallback(async (key: string) => {
+    const result = await authApi.verify(key)
+    if (!result.valid) throw new Error('API Key 无效')
+    persistApiKey(key, result.label, result.avatarUrl)
+    setLabel(result.label)
+    setAvatarUrl(result.avatarUrl ?? null)
+    setAuthed(true)
+  }, [])
 
   useEffect(() => {
     const key = getApiKey()

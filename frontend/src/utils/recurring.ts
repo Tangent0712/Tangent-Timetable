@@ -30,10 +30,3 @@ export function describeFrequency(rule: RecurringTodo): string {
       return time
   }
 }
-
-export const FREQUENCY_LABELS: Record<string, string> = {
-  DAILY: '每天',
-  WEEKLY: '每周',
-  MONTHLY: '每月',
-  CUSTOM: '自定义',
-}

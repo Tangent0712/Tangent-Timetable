@@ -1,14 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import {
-  Button,
-  Card,
-  Empty,
-  Radio,
-  Segmented,
-  Space,
-  Typography,
-  message,
-} from 'antd'
+import { Button, Card, Empty, Radio, Segmented, Space, Typography, message } from 'antd'
 import {
   ImportOutlined,
   LeftOutlined,
@@ -274,9 +265,7 @@ export default function TimetablePage() {
             periods={periods}
             week={week}
             semesterStart={activeSchedule?.periodStartDate ?? null}
-            onCourseClick={(course) =>
-              setCourseModal({ open: true, course, defaults: null })
-            }
+            onCourseClick={(course) => setCourseModal({ open: true, course, defaults: null })}
             onExamClick={() => setExamModalOpen(true)}
             onEmptyClick={(day, period) => openCreate(day, period)}
           />

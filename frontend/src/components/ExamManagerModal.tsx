@@ -174,7 +174,7 @@ export default function ExamManagerModal({
         title={editing === 'new' ? '添加考试' : '编辑考试'}
         onCancel={() => setEditing(null)}
         width={520}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <Space>
             <Button onClick={() => setEditing(null)}>取消</Button>

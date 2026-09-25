@@ -61,8 +61,7 @@ export default function TodosPage() {
   }, [todos, filter])
 
   // 循环待办的来源规则标题（规则被删除时返回 null）
-  const recurringSource = (id: number) =>
-    recurringTodos.find((r) => r.id === id)?.title ?? null
+  const recurringSource = (id: number) => recurringTodos.find((r) => r.id === id)?.title ?? null
 
   const stats = useMemo(() => {
     const active = todos.filter((t) => !t.completed)
@@ -158,7 +157,7 @@ export default function TodosPage() {
         </Space>
       </div>
 
-      <Card style={{ marginTop: 16 }} bodyStyle={{ padding: '4px 12px' }}>
+      <Card style={{ marginTop: 16 }} styles={{ body: { padding: '4px 12px' } }}>
         <List
           dataSource={visible}
           locale={{ emptyText: <Empty description="暂无待办" /> }}
@@ -263,7 +262,7 @@ export default function TodosPage() {
         confirmLoading={saving}
         okText="保存"
         cancelText="取消"
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={form} layout="vertical" requiredMark={false}>
           <Form.Item

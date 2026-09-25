@@ -24,8 +24,8 @@ import { dayjs } from '../utils/schedule'
 
 const TIME_FORMAT = 'HH:mm'
 
-/** 桌面小组件 API 的线上地址（脚本直接访问生产环境） */
-const WIDGET_API_BASE = 'https://todo.tangent0712.top'
+/** 小组件展示页基于当前站点地址生成，随部署环境自动适配 */
+const WIDGET_API_BASE = window.location.origin
 
 const CATEGORY_OPTIONS: { value: PeriodCategory; label: string }[] = [
   { value: 'MORNING', label: '上午' },
@@ -34,8 +34,15 @@ const CATEGORY_OPTIONS: { value: PeriodCategory; label: string }[] = [
 ]
 
 export default function SettingsPage() {
-  const { periods, refreshPeriods, label, schedules, activeScheduleId, activeSchedule, setActiveScheduleId } =
-    useApp()
+  const {
+    periods,
+    refreshPeriods,
+    label,
+    schedules,
+    activeScheduleId,
+    activeSchedule,
+    setActiveScheduleId,
+  } = useApp()
   const { globalScale, ttScale, setGlobalScale, setTtScale } = useFont()
   const [rows, setRows] = useState<PeriodConfig[]>([])
   const [widgetKey] = useState(() => getApiKey() ?? '')
@@ -64,14 +71,18 @@ export default function SettingsPage() {
   const [dirty, setDirty] = useState(false)
 
   useEffect(() => {
-    setRows(periods.map((p) => ({ ...p, startTime: p.startTime.slice(0, 5), endTime: p.endTime.slice(0, 5) })))
+    setRows(
+      periods.map((p) => ({
+        ...p,
+        startTime: p.startTime.slice(0, 5),
+        endTime: p.endTime.slice(0, 5),
+      })),
+    )
     setDirty(false)
   }, [periods])
 
   const patch = (periodNumber: number, changes: Partial<PeriodConfig>) => {
-    setRows((prev) =>
-      prev.map((r) => (r.periodNumber === periodNumber ? { ...r, ...changes } : r)),
-    )
+    setRows((prev) => prev.map((r) => (r.periodNumber === periodNumber ? { ...r, ...changes } : r)))
     setDirty(true)
   }
 
@@ -165,7 +176,11 @@ export default function SettingsPage() {
           dayjs(row.startTime, TIME_FORMAT),
           'minute',
         )
-        return minutes > 0 ? `${minutes} 分钟` : <Typography.Text type="danger">无效</Typography.Text>
+        return minutes > 0 ? (
+          `${minutes} 分钟`
+        ) : (
+          <Typography.Text type="danger">无效</Typography.Text>
+        )
       },
     },
   ]
@@ -184,7 +199,7 @@ export default function SettingsPage() {
           <Alert
             type="info"
             showIcon
-            message="复制下面的网页地址，填入 iPad 小组件脚本 WebDisplay.widget.js 的 TARGET，即可在桌面 4×2 小组件上直接展示本课表的课程与待办。"
+            message="复制下面的网页地址，填入 iPad 上支持加载网页（WebView）的小组件 App，即可在桌面 4×2 小组件中直接展示本课表的课程与待办。"
           />
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <Typography.Text strong>选择课表</Typography.Text>
@@ -206,17 +221,20 @@ export default function SettingsPage() {
         </Space>
       </Card>
 
-      <Card title="字体大小" extra={
-        <Button
-          size="small"
-          onClick={() => {
-            setGlobalScale(1)
-            setTtScale(1)
-          }}
-        >
-          重置
-        </Button>
-      }>
+      <Card
+        title="字体大小"
+        extra={
+          <Button
+            size="small"
+            onClick={() => {
+              setGlobalScale(1)
+              setTtScale(1)
+            }}
+          >
+            重置
+          </Button>
+        }
+      >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>

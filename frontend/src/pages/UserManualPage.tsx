@@ -23,8 +23,7 @@ const FAQ = [
   {
     key: 'weeks',
     label: '周次怎么填不对？',
-    children:
-      '先在「上课周次」下面用 1-16 这类格式输入，点「应用」；或直接勾选。带 * 的是当前周。',
+    children: '先在「上课周次」下面用 1-16 这类格式输入，点「应用」；或直接勾选。带 * 的是当前周。',
   },
   {
     key: 'exam',
@@ -115,11 +114,17 @@ export default function UserManualPage() {
 
           <section>
             <Title level={4}>添加 / 修改 / 删除课程</Title>
-            <Paragraph>点「添加课程」填：课程名称、地点、老师、星期几、第几节、上课周次。</Paragraph>
+            <Paragraph>
+              点「添加课程」填：课程名称、地点、老师、星期几、第几节、上课周次。
+            </Paragraph>
             <Paragraph strong>周次快捷输入：</Paragraph>
             <ul>
-              <li><Text code>1-16</Text> = 第 1 到 16 周都有课</li>
-              <li><Text code>1,3,5</Text> = 单周</li>
+              <li>
+                <Text code>1-16</Text> = 第 1 到 16 周都有课
+              </li>
+              <li>
+                <Text code>1,3,5</Text> = 单周
+              </li>
               <li>有「单周」「双周」「仅本周」「全选」按钮，输完点「应用」。</li>
             </ul>
             <Paragraph>
@@ -197,10 +202,12 @@ export default function UserManualPage() {
             <Title level={4}>设置</Title>
             <ul>
               <li>
-                <Text strong>作息时间表</Text>：全校统一上下课时间，仅供阅读、不可编辑（管理员才能改）。
+                <Text strong>作息时间表</Text>
+                ：全校统一上下课时间，仅供阅读、不可编辑（管理员才能改）。
               </li>
               <li>
-                <Text strong>字体大小</Text>：可分别调「全局其它字体」和「课程表字体」，只保存在当前设备。
+                <Text strong>字体大小</Text>
+                ：可分别调「全局其它字体」和「课程表字体」，只保存在当前设备。
               </li>
             </ul>
           </section>

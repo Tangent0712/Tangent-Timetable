@@ -101,7 +101,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               ],
             }}
           >
-            <div className="icon-btn-round" style={{ width: 'auto', padding: '0 12px', fontSize: 13 }}>
+            <div
+              className="icon-btn-round"
+              style={{ width: 'auto', padding: '0 12px', fontSize: 13 }}
+            >
               {label || '我'}
             </div>
           </Dropdown>

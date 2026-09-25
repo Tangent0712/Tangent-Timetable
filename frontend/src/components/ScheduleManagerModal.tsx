@@ -5,6 +5,7 @@ import {
   Form,
   Input,
   List,
+  message,
   Modal,
   Popconfirm,
   Space,
@@ -86,13 +87,30 @@ export default function ScheduleManagerModal({
       setFormVisible(false)
       setEditing(null)
       form.resetFields()
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '保存失败')
     } finally {
       setSaving(false)
     }
   }
 
+  const handleDelete = async (id: number) => {
+    try {
+      await onDelete(id)
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '删除失败')
+    }
+  }
+
   return (
-    <Modal open={open} maskClosable={false} title="课表管理" onCancel={onCancel} footer={null} width={620}>
+    <Modal
+      open={open}
+      maskClosable={false}
+      title="课表管理"
+      onCancel={onCancel}
+      footer={null}
+      width={620}
+    >
       <List
         dataSource={schedules}
         locale={{ emptyText: '还没有课表，先新建一个' }}
@@ -110,7 +128,7 @@ export default function ScheduleManagerModal({
                 title="删除课表会同时删除其下所有课程，确定吗？"
                 okText="删除"
                 cancelText="取消"
-                onConfirm={() => onDelete(item.id)}
+                onConfirm={() => handleDelete(item.id)}
               >
                 <Button type="text" danger icon={<DeleteOutlined />} />
               </Popconfirm>,

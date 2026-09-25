@@ -78,7 +78,13 @@ export default function AiActionCard({ action, executing, onExecute, onReject, d
       extra={
         pending && (
           <Space>
-            <Button size="small" type="primary" loading={executing} disabled={disabled} onClick={onExecute}>
+            <Button
+              size="small"
+              type="primary"
+              loading={executing}
+              disabled={disabled}
+              onClick={onExecute}
+            >
               确认执行
             </Button>
             <Button size="small" disabled={disabled} onClick={onReject}>
@@ -147,7 +153,11 @@ function recurringLine(r: Dict): string {
 function recurringDiff(b: Dict, a: Dict): DiffRow[] {
   const rows: [string, string, string][] = [
     ['标题', str(b.title), str(a.title)],
-    ['触发规则', b.frequency ? recurringLine(b) : '未指定', a.frequency ? recurringLine(a) : '未指定'],
+    [
+      '触发规则',
+      b.frequency ? recurringLine(b) : '未指定',
+      a.frequency ? recurringLine(a) : '未指定',
+    ],
     ['脚本', scriptSummary(b.script), scriptSummary(a.script)],
   ]
   return rows.map(([field, before, after]) => ({
@@ -176,9 +186,7 @@ function renderBody(type: string, data: Dict) {
           <div key={i}>
             <Typography.Text strong>{str(r.title)}</Typography.Text>
             <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{recurringLine(r)}</div>
-            {r.script ? (
-              <pre className="ai-script-block">{String(r.script)}</pre>
-            ) : null}
+            {r.script ? <pre className="ai-script-block">{String(r.script)}</pre> : null}
           </div>
         ))}
       </Space>
@@ -201,9 +209,7 @@ function renderBody(type: string, data: Dict) {
                 dataSource={recurringDiff(b, a)}
                 pagination={false}
               />
-              {scriptChanged ? (
-                <pre className="ai-script-block">{String(a.script)}</pre>
-              ) : null}
+              {scriptChanged ? <pre className="ai-script-block">{String(a.script)}</pre> : null}
             </div>
           )
         })}
@@ -296,9 +302,7 @@ function renderBody(type: string, data: Dict) {
         {courses.map((c, i) => (
           <div key={i}>
             <Typography.Text strong>{str(c.name)}</Typography.Text>
-            <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
-              {courseLine(c)}
-            </div>
+            <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{courseLine(c)}</div>
           </div>
         ))}
       </Space>
@@ -466,7 +470,11 @@ function examDiff(b: Dict, a: Dict): DiffRow[] {
   const rows: [string, string, string][] = [
     ['考试名', str(b.name), str(a.name)],
     ['日期', str(b.examDate), str(a.examDate)],
-    ['时间', `${timeStr(b.startTime)}-${timeStr(b.endTime)}`, `${timeStr(a.startTime)}-${timeStr(a.endTime)}`],
+    [
+      '时间',
+      `${timeStr(b.startTime)}-${timeStr(b.endTime)}`,
+      `${timeStr(a.startTime)}-${timeStr(a.endTime)}`,
+    ],
     ['地点', str(b.location), str(a.location)],
   ]
   return rows.map(([field, before, after]) => ({

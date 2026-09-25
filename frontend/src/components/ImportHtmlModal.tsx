@@ -1,15 +1,5 @@
 import { useState } from 'react'
-import {
-  Alert,
-  Button,
-  Input,
-  Modal,
-  Result,
-  Space,
-  Steps,
-  Table,
-  Typography,
-} from 'antd'
+import { Alert, Button, Input, Modal, Result, Space, Steps, Table, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import type { CoursePayload, ParsedCourse } from '../types'
 import { formatWeeks, weekDayName } from '../utils/schedule'
@@ -26,13 +16,7 @@ interface Row extends ParsedCourse {
   key: number
 }
 
-export default function ImportHtmlModal({
-  open,
-  aiEnabled,
-  onCancel,
-  onParse,
-  onImport,
-}: Props) {
+export default function ImportHtmlModal({ open, aiEnabled, onCancel, onParse, onImport }: Props) {
   const [step, setStep] = useState(0)
   const [html, setHtml] = useState('')
   const [rows, setRows] = useState<Row[]>([])
@@ -103,9 +87,21 @@ export default function ImportHtmlModal({
   }
 
   const columns: ColumnsType<Row> = [
-    { title: '课程名', dataIndex: 'name', render: (v: string | null) => v ?? <span className="text-muted">缺失</span> },
-    { title: '地点', dataIndex: 'location', render: (v: string | null) => v ?? <span className="text-muted">未指定</span> },
-    { title: '教师', dataIndex: 'teacher', render: (v: string | null) => v ?? <span className="text-muted">未指定</span> },
+    {
+      title: '课程名',
+      dataIndex: 'name',
+      render: (v: string | null) => v ?? <span className="text-muted">缺失</span>,
+    },
+    {
+      title: '地点',
+      dataIndex: 'location',
+      render: (v: string | null) => v ?? <span className="text-muted">未指定</span>,
+    },
+    {
+      title: '教师',
+      dataIndex: 'teacher',
+      render: (v: string | null) => v ?? <span className="text-muted">未指定</span>,
+    },
     {
       title: '星期',
       dataIndex: 'dayOfWeek',
@@ -114,7 +110,11 @@ export default function ImportHtmlModal({
     {
       title: '节次',
       render: (_, r) =>
-        r.startPeriod && r.endPeriod ? `${r.startPeriod}-${r.endPeriod}` : <span className="text-muted">缺失</span>,
+        r.startPeriod && r.endPeriod ? (
+          `${r.startPeriod}-${r.endPeriod}`
+        ) : (
+          <span className="text-muted">缺失</span>
+        ),
     },
     { title: '周次', dataIndex: 'weeks', render: (v: number[]) => formatWeeks(v) },
   ]
@@ -127,7 +127,7 @@ export default function ImportHtmlModal({
       onCancel={close}
       width={960}
       footer={null}
-      destroyOnClose
+      destroyOnHidden
     >
       <Steps
         current={step}
@@ -151,7 +151,8 @@ export default function ImportHtmlModal({
       {step === 0 && (
         <>
           <Typography.Paragraph type="secondary">
-            在你自己浏览器里登录教务系统并打开课程表页面，按 Ctrl+A 全选页面后复制（或查看网页源码全选复制），粘贴到下方，AI 会自动解析成课程列表。
+            在你自己浏览器里登录教务系统并打开课程表页面，按 Ctrl+A
+            全选页面后复制（或查看网页源码全选复制），粘贴到下方，AI 会自动解析成课程列表。
           </Typography.Paragraph>
           <Input.TextArea
             rows={12}
@@ -176,7 +177,8 @@ export default function ImportHtmlModal({
       {step === 1 && (
         <>
           <Typography.Paragraph type="secondary">
-            共解析出 {rows.length} 条课程，勾选需要导入的项。字段缺失的行无法导入，可在导入后手动编辑补全。
+            共解析出 {rows.length}{' '}
+            条课程，勾选需要导入的项。字段缺失的行无法导入，可在导入后手动编辑补全。
           </Typography.Paragraph>
           <Table
             size="small"

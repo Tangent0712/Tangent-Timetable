@@ -15,28 +15,23 @@ import type {
   RecurringTodo,
   RecurringTodoPayload,
   Schedule,
-  ScheduleDetail,
   Todo,
 } from '../types'
 
 export const authApi = {
-  verify: (apiKey: string) =>
-    request<AuthVerifyResponse>('/auth/verify', { apiKey }),
+  verify: (apiKey: string) => request<AuthVerifyResponse>('/auth/verify', { apiKey }),
 }
 
 export const scheduleApi = {
   list: () => request<Schedule[]>('/schedules'),
-  detail: (id: number) => request<ScheduleDetail>(`/schedules/${id}`),
-  create: (body: Omit<Schedule, 'id'>) =>
-    request<Schedule>('/schedules', { method: 'POST', body }),
+  create: (body: Omit<Schedule, 'id'>) => request<Schedule>('/schedules', { method: 'POST', body }),
   update: (id: number, body: Omit<Schedule, 'id'>) =>
     request<Schedule>(`/schedules/${id}`, { method: 'PUT', body }),
   remove: (id: number) => request<null>(`/schedules/${id}`, { method: 'DELETE' }),
 }
 
 export const courseApi = {
-  listBySchedule: (scheduleId: number) =>
-    request<Course[]>(`/schedules/${scheduleId}/courses`),
+  listBySchedule: (scheduleId: number) => request<Course[]>(`/schedules/${scheduleId}/courses`),
   create: (scheduleId: number, body: CoursePayload) =>
     request<Course>(`/schedules/${scheduleId}/courses`, { method: 'POST', body }),
   batchCreate: (scheduleId: number, courses: CoursePayload[]) =>
@@ -65,14 +60,12 @@ export const recurringApi = {
     request<RecurringTodo>('/recurring-todos', { method: 'POST', body }),
   update: (id: number, body: RecurringTodoPayload) =>
     request<RecurringTodo>(`/recurring-todos/${id}`, { method: 'PUT', body }),
-  remove: (id: number) =>
-    request<null>(`/recurring-todos/${id}`, { method: 'DELETE' }),
+  remove: (id: number) => request<null>(`/recurring-todos/${id}`, { method: 'DELETE' }),
   toggle: (id: number) =>
     request<RecurringTodo>(`/recurring-todos/${id}/toggle`, { method: 'PUT' }),
   triggerNow: (id: number) =>
     request<RecurringTodo>(`/recurring-todos/${id}/trigger`, { method: 'POST' }),
-  scriptTemplate: () =>
-    request<RecurringScriptTemplate>('/recurring-todos/script-template'),
+  scriptTemplate: () => request<RecurringScriptTemplate>('/recurring-todos/script-template'),
   testScript: (script: string) =>
     request<RecurringScriptTestResult>('/recurring-todos/test-script', {
       method: 'POST',
@@ -81,12 +74,10 @@ export const recurringApi = {
 }
 
 export const examApi = {
-  listBySchedule: (scheduleId: number) =>
-    request<Exam[]>(`/schedules/${scheduleId}/exams`),
+  listBySchedule: (scheduleId: number) => request<Exam[]>(`/schedules/${scheduleId}/exams`),
   create: (scheduleId: number, body: ExamPayload) =>
     request<Exam>(`/schedules/${scheduleId}/exams`, { method: 'POST', body }),
-  update: (id: number, body: ExamPayload) =>
-    request<Exam>(`/exams/${id}`, { method: 'PUT', body }),
+  update: (id: number, body: ExamPayload) => request<Exam>(`/exams/${id}`, { method: 'PUT', body }),
   remove: (id: number) => request<null>(`/exams/${id}`, { method: 'DELETE' }),
 }
 
@@ -111,13 +102,7 @@ export const aiApi = {
       method: 'PUT',
       body: { title },
     }),
-  listMessages: (id: number) =>
-    request<AiMessage[]>(`/ai/conversations/${id}/messages`),
-  sendMessage: (id: number, content: string, scheduleId: number | null) =>
-    request<AiMessage>(`/ai/conversations/${id}/messages`, {
-      method: 'POST',
-      body: { content, scheduleId },
-    }),
+  listMessages: (id: number) => request<AiMessage[]>(`/ai/conversations/${id}/messages`),
   sendMessageStream: streamMessage,
   execute: (id: number, actionId: number) =>
     request<AiMessage>(`/ai/conversations/${id}/actions/${actionId}/execute`, {
@@ -128,8 +113,8 @@ export const aiApi = {
       method: 'POST',
     }),
   parseHtml: (html: string, scheduleId: number | null) =>
-    request<ParseHtmlResult>(
-      `/ai/parse-html${scheduleId ? `?scheduleId=${scheduleId}` : ''}`,
-      { method: 'POST', body: { html } },
-    ),
+    request<ParseHtmlResult>(`/ai/parse-html${scheduleId ? `?scheduleId=${scheduleId}` : ''}`, {
+      method: 'POST',
+      body: { html },
+    }),
 }

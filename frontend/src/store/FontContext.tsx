@@ -1,10 +1,4 @@
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  type ReactNode,
-} from 'react'
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 
 const GLOBAL_KEY = 'timetable.fontScaleGlobal'
 const TT_KEY = 'timetable.fontScaleTimetable'

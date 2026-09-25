@@ -1,15 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import {
-  Button,
-  Checkbox,
-  Form,
-  Input,
-  Modal,
-  Popconfirm,
-  Select,
-  Space,
-  Typography,
-} from 'antd'
+import { Button, Checkbox, Form, Input, Modal, Popconfirm, Select, Space, Typography } from 'antd'
 import type { Course, CoursePayload, PeriodConfig } from '../types'
 import { WEEK_DAY_NAMES, parseWeeksInput, rangeWeeks } from '../utils/schedule'
 
@@ -96,9 +86,7 @@ export default function CourseFormModal({
   const handleOk = async () => {
     const values = await form.validateFields()
     if (values.endPeriod < values.startPeriod) {
-      form.setFields([
-        { name: 'endPeriod', errors: ['结束节次不能早于开始节次'] },
-      ])
+      form.setFields([{ name: 'endPeriod', errors: ['结束节次不能早于开始节次'] }])
       return
     }
     onSubmit({
@@ -119,7 +107,7 @@ export default function CourseFormModal({
       title={course ? '编辑课程' : '添加课程'}
       onCancel={onCancel}
       width={620}
-      destroyOnClose
+      destroyOnHidden
       footer={
         <Space>
           {course && onDelete && (
@@ -164,9 +152,7 @@ export default function CourseFormModal({
             rules={[{ required: true }]}
             style={{ flex: 1, minWidth: 120 }}
           >
-            <Select
-              options={WEEK_DAY_NAMES.map((n, i) => ({ value: i + 1, label: n }))}
-            />
+            <Select options={WEEK_DAY_NAMES.map((n, i) => ({ value: i + 1, label: n }))} />
           </Form.Item>
           <Form.Item
             name="startPeriod"
@@ -210,21 +196,25 @@ export default function CourseFormModal({
           <Button onClick={() => form.setFieldValue('weeks', allWeeks)}>全选</Button>
           <Button
             onClick={() =>
-              form.setFieldValue('weeks', allWeeks.filter((w) => w % 2 === 1))
+              form.setFieldValue(
+                'weeks',
+                allWeeks.filter((w) => w % 2 === 1),
+              )
             }
           >
             单周
           </Button>
           <Button
             onClick={() =>
-              form.setFieldValue('weeks', allWeeks.filter((w) => w % 2 === 0))
+              form.setFieldValue(
+                'weeks',
+                allWeeks.filter((w) => w % 2 === 0),
+              )
             }
           >
             双周
           </Button>
-          <Button onClick={() => form.setFieldValue('weeks', [currentWeek])}>
-            仅本周
-          </Button>
+          <Button onClick={() => form.setFieldValue('weeks', [currentWeek])}>仅本周</Button>
         </Space.Compact>
         <Typography.Text type="secondary" style={{ fontSize: 12 }}>
           带 * 的周次为当前周
