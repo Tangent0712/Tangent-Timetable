@@ -6,12 +6,14 @@
 
 ## 1. 项目概述
 
-**大学生课程表+待办事项** 一站式日程管理工具，覆盖 Web / Android / macOS 三端。
+**大学生课程表+待办事项** 一站式日程管理工具，Web 应用（前后端分离）。
 
 - **Git 仓库**: `main` 分支
-- **详细需求**: `docs/PRD.md` (v0.5)
-- **Android 灵动岛技术指南**: `docs/SUPER_ISLAND_INTEGRATION_GUIDE.md`
-- **生产环境**: https://todo.tangent0712.top （已上线，部署见 `docs/DEPLOYMENT.md`）
+- **详细需求**: `docs/PRD.md`
+- **架构说明**: `docs/ARCHITECTURE.md`
+- **用户手册**: `docs/USER_MANUAL.md`
+- **iPad 小组件**: `docs/IPAD_WEBVIEW_WIDGET.md`
+- **生产环境**: https://todo.tangent0712.top （部署见 `docs/DEPLOYMENT.md`）
 - **账号与密钥**: `docs/CREDENTIALS.md` ⚠️ 含敏感信息，勿提交到公开仓库
 
 ---
@@ -21,12 +23,10 @@
 | 层 | 技术 |
 |----|------|
 | 后端 | Java 17, Spring Boot 3.2.5, MyBatis-Plus 3.5.6, MySQL 8.x |
-| 构建 | Maven (wrapper 未配置，用系统 mvn) |
+| 构建 | Maven（项目自带 `mvnw` Wrapper，无需另装） |
 | 认证 | `X-API-Key` Header 拦截器 |
-| Web 前端 | Vite 5 + React 18 + TypeScript + Ant Design 5 *(已实现)* |
-| Android | Kotlin 2.2 + Jetpack Compose + Glance *(P3/P4/P5 已实现，见下)* |
-| macOS | SwiftUI + WidgetKit *(尚未实现)* |
-| AI | DeepSeek API (deepseek-v4-flash, JSON Mode + 流式) *(已实现)* |
+| 前端 | Vite 5 + React 18 + TypeScript + Ant Design 5 |
+| AI | DeepSeek API（JSON Mode + SSE 流式） |
 | 脚本沙箱 | Mozilla Rhino 1.7.14（自定义循环规则，ClassShutter 隔离） |
 
 ---
@@ -34,15 +34,19 @@
 ## 3. 项目结构
 
 ```
-ToDoList- TimeTable/
-├── .gitignore
+Tangent-Timetable/
+├── .gitignore / .editorconfig / .env.example
+├── README.md / LICENSE / CONTRIBUTING.md
 ├── docs/
 │   ├── PRD.md                              # 产品需求文档
-│   ├── SUPER_ISLAND_INTEGRATION_GUIDE.md   # 小米超级岛技术指南
-│   ├── DEPLOYMENT.md                       # 生产部署与运维指南
+│   ├── ARCHITECTURE.md                     # 架构说明
+│   ├── DEPLOYMENT.md                       # 部署与运维指南
+│   ├── USER_MANUAL.md                      # 用户手册
+│   ├── IPAD_WEBVIEW_WIDGET.md              # iPad WebView 小组件说明
 │   └── CREDENTIALS.md                      # ⚠️ 账号/密钥/密码（勿公开）
 ├── AGENTS.md                               # 本文件
-├── backend/                                # Spring Boot 后端 (已实现)
+├── backend/                                # Spring Boot 后端
+│   ├── mvnw / .mvn/                        # Maven Wrapper
 │   ├── pom.xml
 │   └── src/main/
 │       ├── java/com/timetable/
@@ -138,37 +142,6 @@ ToDoList- TimeTable/
             ├── AiChatPage.tsx              # 多轮对话 + 会话列表（工作空间保护）
             ├── UserManualPage.tsx          # 用户手册（内置页）
             └── SettingsPage.tsx            # 作息时间表(只读限制) + 字体大小 + 账号
-└── android/                               # Android 客户端 (Kotlin + Compose，已实现 P3/P4/P5)
-    ├── settings.gradle.kts / build.gradle.kts / gradle.properties
-    ├── gradlew (Wrapper 8.13)
-    ├── hidden-api/                        # android.net.IConnectivityManager 编译桩 (Shizuku)
-    └── app/
-        ├── build.gradle.kts               # minSdk 27, targetSdk 36
-        └── src/main/
-            ├── AndroidManifest.xml        # 前台服务 + Glance Widget + Shizuku Provider
-            ├── java/com/timetable/android/
-            │   ├── MainActivity.kt        # 登录→AppScaffold 导航 + 通知权限申请
-            │   ├── TimetableApp.kt
-            │   ├── data/                  # Models/Network/Retrofit API/Settings/Repository
-            │   │   ├── Models.kt / TimetableApi.kt / Network.kt / Settings.kt
-            │   │   ├── TimetableRepository.kt
-            │   │   └── ScheduleEngine.kt  # 周次/当天课程/上课进度状态机
-            │   ├── util/ScheduleCalc.kt   # 倒计时/周次换算 (移植自前端)
-            │   ├── ui/                    # Compose: AppViewModel/AppScaffold/Theme + screen/
-            │   │   ├── AppViewModel.kt    # 登录/登出/同步 + 启停提醒服务
-            │   │   ├── AppScaffold.kt     # 底部导航 (课表/待办/设置)
-            │   │   └── screen/            # Login/Timetable/Todos/Settings 页
-            │   ├── widget/                # Glance 4x6 Widget + WidgetFetcher
-            │   │   ├── ScheduleWidget.kt  # 当天课程最近两条 + 待办最近三条 + 倒计时
-            │   │   └── WidgetFetcher.kt
-            │   └── reminder/              # 上课/考试提醒
-            │       ├── ReminderEngine.kt  # 课前/上课中/下课/考试 状态机
-            │       ├── ScheduleReminderService.kt # 前台服务 30s 轮询
-            │       ├── SuperIslandNotifier.kt     # focus-api + Shizuku XMSF 绕过
-            │       ├── LiveUpdateNotifier.kt      # 标准通知降级
-            │       ├── ShizukuHelper.kt   # Shizuku 权限 + Binder 封装
-            │       └── Notifier.kt        # 通知渠道/构建
-            └── res/                       # 图标/小组件布局/主题
 ```
 
 ---
@@ -178,25 +151,25 @@ ToDoList- TimeTable/
 ### 后端
 
 ```bash
-# 编译 (需先装好 Java 17+ 和 Maven)
+# 编译（项目自带 Maven Wrapper，无需另装 Maven）
 cd backend
-mvn compile
+./mvnw compile
 
 # 本地运行（推荐）：加载 application-local.yml（含本地 DB 密码 + DeepSeek key）
-mvn spring-boot:run -Dspring-boot.run.profiles=local
+./mvnw spring-boot:run -Dspring-boot.run.profiles=local
 
-# 运行 (需先启动 MySQL)
-mvn spring-boot:run
+# 运行（需先启动 MySQL）
+./mvnw spring-boot:run
 
 # 打包
-mvn package -DskipTests
+./mvnw package -DskipTests
 ```
 
 AI 功能需要设置环境变量后再启动：
 
 ```bash
 export DEEPSEEK_API_KEY=sk-xxxx
-mvn spring-boot:run
+./mvnw spring-boot:run
 ```
 
 未设置时 `/api/ai/status` 返回 `enabled=false`，前端会禁用 AI 输入框和导入功能，其余功能正常。
@@ -210,19 +183,6 @@ npm run dev          # 开发服务器 http://localhost:5173，/api 代理到 :8
 npm run typecheck    # tsc --noEmit
 npm run build        # tsc -b && vite build → dist/
 ```
-
-### Android
-
-```bash
-cd android
-export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
-export ANDROID_HOME="$HOME/Library/Android/sdk"
-./gradlew assembleDebug          # 构建 debug APK → app/build/outputs/apk/debug/
-./gradlew testDebugUnitTest      # 运行 JVM 单元测试 (ScheduleEngine)
-./gradlew installDebug           # 安装到已连接设备/模拟器
-```
-> 依赖走国内镜像（Aliyun）替代被墙的 Maven Central；如遇 403 需检查网络镜像配置。
-> 首次构建会自动用 Gradle 8.13 Wrapper 下载依赖。
 
 
 ---
@@ -359,7 +319,7 @@ Controller → Service (接口) → ServiceImpl → Mapper (MyBatis-Plus)
 
 ## 8. 开发进度
 
-> 最后更新：2026-08-08
+> 最后更新：2026-09-26
 
 | 阶段 | 内容 | 状态 |
 |------|------|------|
@@ -370,18 +330,10 @@ Controller → Service (接口) → ServiceImpl → Mapper (MyBatis-Plus)
 | P2.6 自定义循环规则 | Rhino 沙箱脚本引擎 | **已完成** |
 | P2.7 考试记录 | 直接输入起止时间、课表红色块展示、独立考试、自动关联待办、AI 增删改查 | **已完成** |
 | P2.8 前端体验 | 响应式窄屏布局、字体大小设置、用户手册页、作息时间表只读权限 | **已完成** |
-| P3 Android | 课表查看、待办查看、同步 | *⚠️ 代码骨架在，实测有严重问题，需返工* |
-| P4 Android 小组件 | Glance 4x6 Widget、DDL倒计时 | *⚠️ 代码在，未真机充分验证* |
-| P5 Android 灵动岛 | FocusNotification + Shizuku + LiveUpdate | *⚠️ 代码在，需真机 + Shizuku 验证* |
-| P6 Mac 小组件 | SwiftUI Notification Center Widget | *未开始* |
+| P2.9 iPad 小组件 | WebView 加载 `/widget` 展示页 + RESTful 接口 | **已完成** |
 
 > **生产部署已完成**：站点 https://todo.tangent0712.top，后端跑在 `<YOUR_SERVER_IP>:8200`。
 > 部署与运维见 `docs/DEPLOYMENT.md`，全部账号/密钥见 `docs/CREDENTIALS.md`（敏感，勿提交）。
->
-> **⚠️ Android 客户端状态（2026-08-08）**：`android/` 代码结构齐全（Gradle 8.13 Wrapper +
-> Kotlin 2.2 + AGP 8.7.3，Aliyun 镜像），`assembleDebug` 能过，但**用户实测报 4 个硬性问题
-> （顶栏进状态栏、圆形控件方形背景、作息表未加载、登录报 JSON 格式非法），
-> 当前不可用**。接手前**务必先读 `docs/ANDROID_HANDOFF.md`**，里面记录了全部问题根因与修复方向。
 
 ### 待开发事项（TODO）
 
@@ -404,8 +356,8 @@ Controller → Service (接口) → ServiceImpl → Mapper (MyBatis-Plus)
 deepseek:
   api:
     key: ${DEEPSEEK_API_KEY:your-deepseek-api-key}
-    base-url: https://api.deepseek.com
-    model: deepseek-chat
+    base-url: ${DEEPSEEK_BASE_URL:https://api.deepseek.com}
+    model: ${DEEPSEEK_MODEL:deepseek-v4-flash}
 ```
 
 - `DeepSeekClientImpl` 用 `java.net.http.HttpClient` 调 `/chat/completions`，

@@ -14,7 +14,7 @@
 浏览器
   │  https://todo.tangent0712.top
   ▼
-Nginx (宝塔)  ── 静态文件 /www/wwwroot/todo.tangent0712.top/  （Vue 前端）
+Nginx (宝塔)  ── 静态文件 /www/wwwroot/todo.tangent0712.top/  （React 前端）
   │  location /api/ 反向代理
   ▼
 Spring Boot 后端 127.0.0.1:8200  （/opt/timetable/backend/）
@@ -62,8 +62,8 @@ ssh tangent-server 'sudo nginx -t && sudo nginx -s reload'
 
 ### 4.1 后端更新
 ```bash
-# 1. 本地打包（Java 17+ / Maven）
-cd backend && mvn package -DskipTests
+# 1. 本地打包（Java 17+，使用项目自带 Maven Wrapper）
+cd backend && ./mvnw package -DskipTests
 
 # 2. 上传 jar
 scp backend/target/timetable-backend-1.0.0.jar tangent-server:/opt/timetable/backend/
