@@ -83,7 +83,7 @@ Tangent-Timetable/
 │       │   │   ├── PeriodConfig.java          # period_config 表
 │       │   │   ├── AiConversation.java        # ai_conversation 表
 │       │   │   └── AiMessage.java             # ai_message 表
-│       │   ├── mapper/                        # MyBatis-Plus Mapper (8个，含 ExamMapper)
+│       │   ├── mapper/                        # MyBatis-Plus Mapper (10个)
 │       │   ├── service/
 │       │   │   ├── ApiKeyService / ScheduleService / CourseService / ExamService
 │       │   │   │   / TodoService / PeriodConfigService
@@ -202,7 +202,7 @@ npm run build        # tsc -b && vite build → dist/
 | `exam` | id (BIGINT AUTO) | 考试，含 schedule_id 外键（不关联课程）；直接输入日期/起止时间 |
 | `todo` | id (BIGINT AUTO) | 待办，含 api_key 外键；recurring_id 指循环规则，exam_id 指考试 |
 | `ai_conversation` | id (BIGINT AUTO) | AI 对话，含 api_key + schedule_id |
-| `ai_message` | id (BIGINT AUTO) | AI 消息，含 role/content（action_* 列已废弃，保留兼容） |
+| `ai_message` | id (BIGINT AUTO) | AI 消息，含 role/content |
 | `ai_action` | id (BIGINT AUTO) | AI 操作提案，一条消息可有多条；含 scope/status/data/fingerprint |
 | `recurring_todo` | id (BIGINT AUTO) | 循环待办规则，含 frequency/触发时刻/截止偏移/自定义脚本 |
 
@@ -227,7 +227,7 @@ npm run build        # tsc -b && vite build → dist/
 
 ### 认证方式
 
-所有接口（除 `/api/auth/verify`）需在 Header 中携带 `X-API-Key: <your-key>`。
+所有接口（除 `/api/auth/verify` 与只读的 `/api/widget/**`）需在 Header 中携带 `X-API-Key: <your-key>`。
 
 ### 接口清单
 
@@ -262,7 +262,7 @@ npm run build        # tsc -b && vite build → dist/
 | GET | `/api/recurring-todos/script-template` | 自定义脚本骨架 + 可用 ctx 字段 |
 | POST | `/api/recurring-todos/test-script` | 试运行脚本 → `{valid, triggeredNow, error}` |
 | GET | `/api/period-config` | 获取作息时间表 |
-| PUT | `/api/period-config` | 修改作息时间表 |
+| PUT | `/api/period-config` | 修改作息时间表（仅管理员账号） |
 | GET | `/api/ai/status` | AI 是否可用 `{enabled}` |
 | GET | `/api/ai/conversations` | 对话列表 |
 | POST | `/api/ai/conversations` | 创建对话 `{scheduleId}` |
@@ -274,6 +274,7 @@ npm run build        # tsc -b && vite build → dist/
 | POST | `/api/ai/conversations/{id}/actions/{actionId}/execute` | 确认执行单个提案 |
 | POST | `/api/ai/conversations/{id}/actions/{actionId}/reject` | 取消单个提案 |
 | POST | `/api/ai/parse-html?scheduleId=` | 解析教务 HTML → `{courses, note}` |
+| GET | `/api/widget/overview/{key}?scheduleId=` | iPad 小组件只读聚合（免鉴权，key 路径传入） |
 
 ### 统一响应格式
 

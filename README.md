@@ -20,7 +20,7 @@
   并有工作空间隔离与提案失效机制防止数据错乱。
 - **体验**：深浅色主题、全局与课表字体缩放、响应式布局（移动端自适应）。
 - **iPad 小组件（附加）**：用 WebView 组件加载 `/widget` 只读展示页，通过 RESTful 接口
-  每 15 分钟刷新课程与待办。
+  每 60 秒刷新课程与待办（页面可见时）。
 
 ## 技术栈
 
@@ -55,8 +55,9 @@ Tangent-Timetable/
 │   ├── DEPLOYMENT.md        # 部署指南
 │   ├── USER_MANUAL.md       # 用户手册
 │   └── IPAD_WEBVIEW_WIDGET.md
-├── README.md
-└── LICENSE
+├── AGENTS.md                # 开发指南（含完整接口清单）
+├── README.md / LICENSE / CONTRIBUTING.md
+└── .editorconfig / .env.example
 ```
 
 ## 快速开始
@@ -100,8 +101,12 @@ npm run dev        # http://localhost:5173，/api 已代理到 :8080
 | `DEEPSEEK_API_KEY` | DeepSeek 密钥；不配置则 AI 功能禁用 | 空 |
 | `DEEPSEEK_BASE_URL` | DeepSeek 接口地址 | `https://api.deepseek.com` |
 | `DEEPSEEK_MODEL` | 模型名 | `deepseek-v4-flash` |
+| `CORS_ALLOWED_ORIGINS` | 允许跨域的来源（逗号分隔） | `*` |
+| `ADMIN_LABELS` | 可编辑全局作息表的账号 label（逗号分隔） | `Tangent0712` |
+| `VITE_API_BASE`（前端） | 前端 API 基地址 | `/api` |
+| `VITE_ADMIN_LABELS`（前端） | 前端 UI 管理员判断（仅 UI，后端以 `ADMIN_LABELS` 为准） | `Tangent0712` |
 
-更多示例见 `.env.example`。**请勿提交任何真实密钥。**
+更多示例见根目录 `.env.example` 与 `frontend/.env.example`。**请勿提交任何真实密钥。**
 
 ## API 概览
 
@@ -124,7 +129,7 @@ npm run dev        # http://localhost:5173，/api 已代理到 :8080
 | AI | `POST /api/ai/conversations/{id}/messages/stream`、`POST /api/ai/parse-html` |
 | 小组件 | `GET /api/widget/overview/{key}?scheduleId=` |
 
-完整接口清单与实现细节见 `docs/ARCHITECTURE.md` 与 `AGENTS.md`。
+完整接口清单与实现细节见 `AGENTS.md`，整体架构见 `docs/ARCHITECTURE.md`。
 
 ## 相关文档
 

@@ -104,12 +104,12 @@ mysql -utimetable -p'<密码>' timetable
 mysql -uroot -p"$TANGENT_COMMON_PASSWORD" timetable
 ```
 
-新增用户（见 CREDENTIALS.md）：
+新增用户（凭据见本地维护的 `CREDENTIALS.md`，该文件不随仓库发布）：
 ```sql
 INSERT IGNORE INTO api_key (api_key, label, avatar_url) VALUES ('tt_xxx', '用户名', '头像URL');
 ```
 
-> 后端 `application-prod.yml` 配置了 `sql.init.mode=always`，schema.sql / data.sql 幂等，启动会自动建表并插入默认作息与 demo-key。已存在的表/数据用 `INSERT IGNORE` / `CREATE IF NOT EXISTS`，不会重复。
+> 生产环境可创建 `application-prod.yml`（需自行维护，未随仓库发布）并设 `sql.init.mode=always`；schema.sql / data.sql 幂等，启动会自动建表并插入默认作息与 demo-key。已存在的表/数据用 `INSERT IGNORE` / `CREATE IF NOT EXISTS`，不会重复。
 
 > ⚠️ **schema 变更需手动 ALTER**：`CREATE TABLE IF NOT EXISTS` 与 `CREATE ... IF NOT EXISTS`
 > 只会新建**不存在的表**，**不会给已存在的表补列**。因此每次改 `schema.sql` 后，生产库需手动 ALTER。
