@@ -10,7 +10,7 @@
 ## 功能特性
 
 - **课表管理**：多课表、周次与单双周、跨节课程、可视化 7×12 网格、冲突提示。
-- **待办事项**：秒级 DDL 倒计时，支持分类与完成状态。
+- **待办事项**：秒级 DDL 倒计时、完成状态标记；考试关联待办在考试结束后自动完成。
 - **循环待办**：每日 / 每周 / 每月规则自动生成；支持用 JavaScript 编写
   `shouldTrigger(ctx)` 自定义规则（Rhino 沙箱隔离，五层安全防护）。
 - **考试记录**：直接输入日期与起止时间，课表内以红色块展示，自动生成关联待办，
@@ -54,10 +54,11 @@ Tangent-Timetable/
 │   ├── ARCHITECTURE.md      # 架构说明
 │   ├── DEPLOYMENT.md        # 部署指南
 │   ├── USER_MANUAL.md       # 用户手册
-│   └── WEBVIEW_WIDGET.md   # WebView 小组件 / 全屏应用
+│   └── WEBVIEW_WIDGET.md    # WebView 小组件 / 全屏应用
+├── .github/workflows/ci.yml # GitHub Actions CI
 ├── AGENTS.md                # 开发指南（含完整接口清单）
 ├── README.md / LICENSE / CONTRIBUTING.md
-└── .editorconfig / .env.example
+└── .editorconfig / .env.example / .gitattributes
 ```
 
 ## 快速开始
@@ -93,6 +94,8 @@ npm run dev        # http://localhost:5173，/api 已代理到 :8080
 
 浏览器打开后，在登录页输入 API Key（默认演示账号 `demo-key-001`）即可进入。
 
+> 更多开发命令、代码约定与提交规范见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+
 ## 配置
 
 | 环境变量 | 说明 | 默认值 |
@@ -125,7 +128,7 @@ npm run dev        # http://localhost:5173，/api 已代理到 :8080
 | 待办 | `GET/POST /api/todos`、`PUT /api/todos/{id}/toggle` |
 | 循环待办 | `GET/POST /api/recurring-todos`、`POST /api/recurring-todos/{id}/trigger` |
 | 考试 | `GET/POST /api/schedules/{id}/exams`、`PUT/DELETE /api/exams/{id}` |
-| 作息 | `GET/PUT /api/period-config` |
+| 作息 | `GET/PUT /api/period-config`（PUT 仅管理员） |
 | AI | `POST /api/ai/conversations/{id}/messages/stream`、`POST /api/ai/parse-html` |
 | 小组件 | `GET /api/widget/overview/{key}?scheduleId=` |
 
@@ -138,6 +141,8 @@ npm run dev        # http://localhost:5173，/api 已代理到 :8080
 - 部署指南：[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
 - 用户手册：[docs/USER_MANUAL.md](docs/USER_MANUAL.md)
 - WebView 小组件 / 全屏应用：[docs/WEBVIEW_WIDGET.md](docs/WEBVIEW_WIDGET.md)
+- 开发指南（含完整接口清单）：[AGENTS.md](AGENTS.md)
+- 贡献指南：[CONTRIBUTING.md](CONTRIBUTING.md)
 
 ## License
 
