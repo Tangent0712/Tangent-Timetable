@@ -49,7 +49,7 @@ Controller → Service(接口) → ServiceImpl → Mapper (MyBatis-Plus) → MyS
 | 考试 | `ExamService`，创建/修改/删除考试时同步关联待办；`ExamTodoScheduler` 自动完成已结束考试的待办 |
 | AI | `AiService` + `AiPromptBuilder` + `DeepSeekClient`，提案存储与执行、工作空间保护 |
 | 作息时间表 | `PeriodConfigService`，全局配置 |
-| 小组件 | `WidgetService`，只读聚合接口，供 WebView 展示页（iPad 小组件 / Android 全屏应用）使用 |
+| 小组件 | `WidgetService`，只读聚合接口，供桌面小组件只读展示页（`/widget`）使用 |
 
 ---
 

@@ -12,7 +12,7 @@
 ### 1.2 核心价值
 - **AI 零门槛录入**：复制教务系统 HTML → AI 解析自动建课表；自然语言一句话增删改课程/待办
 - **多端同步**：服务器统一存储，浏览器随时随地访问，数据一致
-- **WebView 小组件/全屏应用**：iPad 桌面小组件与 Android 全屏应用均以 WebView 加载只读展示页，查看课程与待办
+- **移动端 WebView 承载**：桌面小组件（iPad / Android）加载只读展示页；全屏应用直接使用响应式首页
 
 ---
 
@@ -462,7 +462,7 @@ CREATE TABLE todo (
 | P0 后端核心 | 数据库建表、CRUD API、作息时间表API | 后端先行 |
 | P1 AI 集成 | DeepSeek 解析HTML、自然语言CRUD | 核心差异化 |
 | P2 Web 前端 | 课表视图、待办列表、AI输入框、导入流程 | 主操作端 |
-| P2.9 WebView 小组件/全屏应用 | iPad/Android 以 WebView 加载 `/widget` 展示页 + RESTful 接口 | 已实现 |
+| P2.9 移动端 WebView 承载 | 桌面小组件加载 `/widget` 展示页；全屏应用使用响应式首页 | 已实现 |
 
 ---
 
